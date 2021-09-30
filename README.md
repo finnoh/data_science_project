@@ -15,8 +15,8 @@ Zur Bewertung erstellen die Studierenden die folgenden Komponenten:
 
 - [ ] Die Studierenden präsentieren im Rahmen der Abschlusspräsentation das fertige „Produkt“, z.B. eine Website (Shiny-App) oder eine vergleichbare Möglichkeit, als Nutzer mit den Daten zu interagieren.
 
-- [] Die Studierenden stellen den Code auf GitHub bereit. Der Code muss nachvollziehbar kommentiert sein, und es muss aus dem Code, der Benennung der Dateien, oder einer begleitenden Dokumentation klar hervorgehen, welche Dateien in welcher Reihenfolge ausgeführt werden müssen. Pfade müssen so gesetzt werden, dass keine manuelle Änderung von Pfadnamen notwendig ist, wenn der Code auf anderen Computern ausgeführt wird. Zudem stellen die Studierenden die im Projekt genutzten Daten bereit, im Regelfall durch ein zufälliges (kleines) Sample auf GitHub, dazu den vollständigen Datensatz als FileTransfer (z. B. Dropbox).
+- [ ] Die Studierenden stellen den Code auf GitHub bereit. Der Code muss nachvollziehbar kommentiert sein, und es muss aus dem Code, der Benennung der Dateien, oder einer begleitenden Dokumentation klar hervorgehen, welche Dateien in welcher Reihenfolge ausgeführt werden müssen. Pfade müssen so gesetzt werden, dass keine manuelle Änderung von Pfadnamen notwendig ist, wenn der Code auf anderen Computern ausgeführt wird. Zudem stellen die Studierenden die im Projekt genutzten Daten bereit, im Regelfall durch ein zufälliges (kleines) Sample auf GitHub, dazu den vollständigen Datensatz als FileTransfer (z. B. Dropbox).
 
-- [] Studierende stellen das Interface (z. B. Shiny-App) den anderen Studierenden und den Lehrenden zur Verfügung, in dem dieses z. B. in der BWCloud gehostet wird.
+- [ ] Studierende stellen das Interface (z. B. Shiny-App) den anderen Studierenden und den Lehrenden zur Verfügung, in dem dieses z. B. in der BWCloud gehostet wird.
 
-- [] Die Studierenden erstellen ein kurzes Video (ca. 3 Minuten), das das Projekt und das Ergebnis anschaulich für einen breiteren Kreis von Nutzern darstellt.
+- [ ] Die Studierenden erstellen ein kurzes Video (ca. 3 Minuten), das das Projekt und das Ergebnis anschaulich für einen breiteren Kreis von Nutzern darstellt.
