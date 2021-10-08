@@ -13,7 +13,6 @@
 - social media accounts from: team-details, as well as GM and Coach
 - player-awards
 - Draft Data (*draft boar data to get age*)
-- Clutch Players
 
 
 ## Scrape HoopsHype
