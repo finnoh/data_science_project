@@ -16,7 +16,7 @@
 - Clutch Players
 - Hot zones
 
-## Twitter API [TO-DO]
+## Twitter API **[TO-DO]**
 - [API v2](https://developer.twitter.com/en/docs/twitter-api/early-access)
 - Include tweets from players, GM/Coach
 - Analyse current sentiment of fan base
