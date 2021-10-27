@@ -3,7 +3,7 @@
 ## 01 - 26th Oct
 Two core parts: recommendation engine (e.g. graph constructed by knn or GMM) and season prediction (MC simulation, bayesian model)
 
-### Clustering
+### Clustering (Tim)
 - Strategies fort the GM (slider rebuild - all-in)
   - All-in: only this season counts
 - Imperfections in the market, trades are very hard
@@ -12,7 +12,7 @@ Two core parts: recommendation engine (e.g. graph constructed by knn or GMM) and
 - knn graph or GMM model (criteria for GM), single model per position
 - GM can weight categories (100 pts to spend)
 
-### Prediction
+### Prediction (Finn)
 - Distribution of predicted wins
 - Simulation of whole season or just of "our" team?
 - Only simulate the ones that change?
