@@ -35,3 +35,6 @@ Folder containing notes in `.md` format and their generated PDFs.
 
 ### noteboooks
 Jupyter `.ipynb` notebooks to try stuff out and for coding ideas.
+
+### src
+Folder for source code, i.e. here we can specify python modules
