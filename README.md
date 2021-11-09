@@ -20,3 +20,18 @@ Zur Bewertung erstellen die Studierenden die folgenden Komponenten:
 - [ ] Studierende stellen das Interface (z. B. Shiny-App) den anderen Studierenden und den Lehrenden zur Verfügung, in dem dieses z. B. in der BWCloud gehostet wird.
 
 - [ ] Die Studierenden erstellen ein kurzes Video (ca. 3 Minuten), das das Projekt und das Ergebnis anschaulich für einen breiteren Kreis von Nutzern darstellt.
+
+## Housekeeping
+Different subfolders and their purposes:
+
+### data
+Contains datafiles, optionally odered in more subfolders for different applications. We should pay attention, if there is a potential to make use of multiple dataset jointly.
+
+### assets
+Later on this can be used for style elements such as `.css` files or images.
+
+### notes
+Folder containing notes in `.md` format and their generated PDFs.
+
+### noteboooks
+Jupyter `.ipynb` notebooks to try stuff out and for coding ideas.
