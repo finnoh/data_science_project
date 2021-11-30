@@ -94,7 +94,7 @@ def update_image_src(value):
 def _player_wiki_summary(value):
     wiki_wiki = wikipediaapi.Wikipedia('en')
     page_py = wiki_wiki.page(value)
-    return f"https://simple.wikipedia.org/wiki/Chris_Paul"
+    return "player wikipedia summary"
 
 if __name__ == '__main__':
     app.run_server(debug=True)
