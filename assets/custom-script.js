@@ -1,0 +1,1 @@
+alert('Welcome to the NBA GM App by Tim Bündert and Finn Höner')
