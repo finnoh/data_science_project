@@ -136,3 +136,7 @@ widgetsnbextension @ file:///opt/concourse/worker/volumes/live/42762d5a-6520-4b0
 xarray==0.19.0
 xgboost==1.5.0
 zipp @ file:///tmp/build/80754af9/zipp_1633618647012/work
+
+tqdm~=4.61.1
+dash~=1.19.0
+plotly~=5.1.0
