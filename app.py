@@ -9,6 +9,8 @@ import pandas as pd
 from src.get_data import get_clean_player_data
 from src.utils_dash import _player_selector
 
+#from recommmendation_engine import _player_selector
+
 import dash_bootstrap_components as dbc
 
 app = dash.Dash(__name__, title="NBA GM")
@@ -49,8 +51,20 @@ app.layout = html.Div(children=[
 
             dbc.Container([
                 dcc.Graph(id='playerselect-graph1')
-            ])]),
-        dcc.Tab(label='Tab Three', value='tab-3', children=html.H1("Yet Another Page"))])
+            ])
+        ]),
+
+        dcc.Tab(label='Recommendation engine', value='tab-3', children=[
+            html.H1(children='Recommendation Engine for NBA players')
+            ]
+        ),
+
+        dcc.Tab(label='Dimensionality Reduction', value='tab-4', children=[
+            html.H1(children='Recommendation Engine for NBA players')
+            ]
+        )
+    ])
+
 ])
 
 
@@ -93,8 +107,13 @@ def update_image_src(value):
     [dash.dependencies.Input('playerselect-dropdown', 'value')])
 def _player_wiki_summary(value):
     wiki_wiki = wikipediaapi.Wikipedia('en')
-    page_py = wiki_wiki.page(value)
-    return "player wikipedia summary"
+    df = player_selector
+    name = list(df[df['value'] == value]['label'])[0]
+    page_py = wiki_wiki.page(name)
+    if page_py.exists():
+        return page_py.summary
+    else:
+        return f"No Wikipedia page found for {str(name)}"
 
 if __name__ == '__main__':
     app.run_server(debug=True)
