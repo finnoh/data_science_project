@@ -11,6 +11,7 @@ import matplotlib.ticker as mtick
 import time
 from collections import Counter
 from fuzzywuzzy import fuzz
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import commonplayerinfo
@@ -18,37 +19,38 @@ from nba_api.stats.static import teams
 from nba_api.stats.endpoints import playercareerstats
 
 
-players_data = pd.read_csv('players_data.csv').sort_values(by=['id']).reset_index(drop = True)
-players_salaries = pd.read_csv('players_salaries.csv').sort_values(by=['id'])
-players_stats_agg = pd.read_csv('playercareerstats_agg.csv').sort_values(by=['PLAYER_ID']) # gewichtete Durchschnitte der letzten 3 Saisons: 1/3, 2/3, 3/3
-players_stats = pd.read_csv('playercareerstats.csv').sort_values(by=['PLAYER_ID'])
+def get_players_data():
+    return pd.read_csv('players_data.csv').sort_values(by=['id']).reset_index(drop = True)
 
-teams_data = pd.read_csv('teams_data.csv')
-teams_salaries = pd.read_csv('teams_salaries.csv')
-teams_salaries.loc[teams_salaries['Abb'] == 'UTH', 'Abb'] = 'UTA' # manual fix -> orrect in other notebook producing the data
+def get_players_salary():
+    return pd.read_csv('players_salaries.csv').sort_values(by=['id'])
 
-boxscores = pd.read_csv('data/season_prediction/boxscores_20_21.csv')
+def get_players_stats():
+    return pd.read_csv('playercareerstats.csv').sort_values(by=['PLAYER_ID'])
 
+def get_teams_data():
+    return pd.read_csv('teams_data.csv')
 
-# ## Optional: change weights for aggregating seasonal data
-w = [7/10, 2/10, 1/10]
-players_stats = players_stats[(players_stats['SEASON_ID'] == '2020-21') | 
-                              (players_stats['SEASON_ID'] == '2019-20') | 
-                              (players_stats['SEASON_ID'] == '2018-19')].reset_index().drop(columns=['index'])
-# get data per game
+def get_teams_salaries():
+    teams_salaries = pd.read_csv('teams_salaries.csv')
+    teams_salaries.loc[teams_salaries['Abb'] == 'UTH', 'Abb'] = 'UTA' # manual fix -> correct in other notebook producing the data
+    return teams_salaries
 
-col_div = ['MIN', 'FGM', 'FGA', 'FG3M', 'FG3A', 'FTM', 'FTA', 'OREB', 'DREB', 'REB', 'AST', 'STL',
-           'BLK', 'TOV', 'PF', 'PTS']
-col_idx =  [list(players_stats.columns).index(i) for i in col_div]
+def get_boxscores_lastSeason():
+    return pd.read_csv('data/season_prediction/boxscores_20_21.csv')
 
-for i in range(players_stats.shape[0]):
-    n_games = players_stats["MIN"][i] #  per 'GP' or per 'MIN'?
-    for j in col_idx:
-        players_stats.iloc[i, j] /= n_games
-#display(players_stats.head())
+#players_stats_agg = pd.read_csv('playercareerstats_agg.csv').sort_values(by=['PLAYER_ID']) # gewichtete Durchschnitte der letzten 3 Saisons: 1/3, 2/3, 3/3
 
+players_data = get_players_data()
+players_salaries = get_players_salary()
+players_stats = get_players_stats()
+teams_data = get_teams_data()
+teams_salaries = get_teams_salaries()
+boxscores = get_boxscores_lastSeason()
 
-def combine_seasons(player_id, weights):
+## Optional: change weights for aggregating seasonal data
+
+def combine_seasons(players_stats, player_id, weights):
     df = players_stats[players_stats['PLAYER_ID'] == player_id]
     
     season_20 = df[df['SEASON_ID'] == '2020-21']
@@ -91,26 +93,37 @@ def combine_seasons(player_id, weights):
     dict_final = dict(df_final.iloc[0])
     return dict_final
 
+def aggregate_data(players_stats, w, norm = True):
+    players_stats = players_stats[(players_stats['SEASON_ID'] == '2020-21') | 
+                                  (players_stats['SEASON_ID'] == '2019-20') | 
+                                  (players_stats['SEASON_ID'] == '2018-19')].reset_index().drop(columns=['index'])
 
-players_stats_agg = [combine_seasons(player_id, w) for player_id in players_data['id']]
-try:
-    ind_player_drop = players_stats_agg.index('NA')
-except ValueError:
-    pass
-players_stats_agg = [x for x in players_stats_agg if x != 'NA']
-players_stats_agg = pd.DataFrame(players_stats_agg).sort_values(by=['PLAYER_ID']).reset_index(drop = True)
-print('here')
-players_stats_agg.head()
+    col_div = ['MIN', 'FGM', 'FGA', 'FG3M', 'FG3A', 'FTM', 'FTA', 'OREB', 'DREB', 'REB', 'AST', 'STL',
+                'BLK', 'TOV', 'PF', 'PTS']
+    col_idx =  [list(players_stats.columns).index(i) for i in col_div]
+
+    for i in range(players_stats.shape[0]):
+        n_games = players_stats["MIN"][i] #  per 'GP' or per 'MIN'?
+        for j in col_idx:
+            players_stats.iloc[i, j] /= n_games
+
+    players_stats_agg = [combine_seasons(players_stats, player_id, w) for player_id in players_data['id']]
+    try:
+        ind_player_drop = players_stats_agg.index('NA')
+    except ValueError:
+        pass
+    players_stats_agg = [x for x in players_stats_agg if x != 'NA']
+    players_stats_agg = pd.DataFrame(players_stats_agg).sort_values(by=['PLAYER_ID']).reset_index(drop = True)
+
+    if norm == True:
+        scaler = StandardScaler()
+        norm_data = scaler.fit_transform(players_stats_agg.iloc[:,5:])
+        players_stats_agg.iloc[:,5:] = norm_data
+
+    return players_stats_agg
 
 
-# normalize data
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-scaler = StandardScaler()
-
-#players_stats_agg = copy.deepcopy(players_stats_agg)
-norm_data = scaler.fit_transform(players_stats_agg.iloc[:,5:])
-players_stats_agg.iloc[:,5:] = norm_data
-print(players_stats_agg.head())
+players_stats_agg = aggregate_data(players_stats, [7/10, 2/10, 1/10])
 
 
 ## Define help functions
@@ -188,31 +201,102 @@ def luxury_tax(cap_space):
                 
         return tax
 
+def starting_five(team_abb: str, names = False):
+    positions = {'F': 2, 'C': 1, 'G': 2}
+    data_team = boxscores[(boxscores['TEAM_ABBREVIATION'] == team_abb) & (boxscores['START_POSITION'].notnull())].loc[:, ['PLAYER_ID', 'START_POSITION']]
+    players_team = list(players_data[players_data['team'] == team_abb]['id'])
 
-# ## Dimensionality reduction (also pro position)
+    if list(data_team['START_POSITION'].unique()) != list(positions.keys()):
+        print('Error')
+
+    players_pos = list()
+    for pos in positions.keys():
+        data_team_pos = data_team[data_team['START_POSITION'] == pos]['PLAYER_ID'].astype(int)
+        count_pos = Counter(data_team_pos)
+        count_pos = dict(sorted(count_pos.items(), key=lambda item: item[1], reverse=True))
+        del_players = []
+        for i in range(len(count_pos)):
+            player = list(count_pos.keys())[i]
+            if player not in players_team: # only keep players which are still active and belong to team at end of last season
+                del_players.append(player)
+
+        for p in del_players:
+            del count_pos[p]
+        players_pos.append(count_pos)
 
 
-data_names = list(players_data['player_names'])
+    # delete player from positions where he played less frequently
+    players = [list(players_pos[i].keys()) for i in range(len(positions))]
+    players = dict(Counter([x for l in players for x in l]))
+    dupl_players = [k for k,v in players.items() if v > 1]
+    for dupl_pl in dupl_players:
+        counts = []
+        for i in range(len(players_pos)):
+            try:
+                counts.append(players_pos[i][dupl_pl])
+
+            except KeyError:
+                counts.append(0)
+        keep_pos = np.argmax(counts)
+        for j in range(len(players_pos)):
+            if j == keep_pos:
+                continue
+            try:
+                del players_pos[j][dupl_pl]
+
+            except KeyError:
+                continue
+
+    starting_five = {}
+    for i in range(len(positions)):
+        pos = list(positions.keys())[i]
+        dict_pos = players_pos[i]
+        pos_players = list(dict_pos.keys())[:(positions[pos])]
+        for i in range(len(pos_players)):
+            if names:
+                name = list(players_data[players_data['id'] == pos_players[i]]['player_names'])[0]
+                starting_five[name] = pos 
+
+            else:
+                starting_five[pos_players[i]] = pos                               
+
+    return starting_five
 
 
-# ### Spectral embedding
+## Dimensionality reduction
 
-def spectral_embeddings():
-    # (https://scikit-learn.org/stable/modules/generated/sklearn.manifold.SpectralEmbedding.html)
-    from sklearn.manifold import SpectralEmbedding
-
-    players_stats_spectral = copy.deepcopy(players_stats_agg.iloc[:,:5])
+def embeddings(option: str):
     data_names = list(players_data['player_names'])
+    players_stats = copy.deepcopy(players_stats_agg.iloc[:,:5])
 
-    embedding = SpectralEmbedding(random_state = 42, n_neighbors = players_stats_agg.shape[0]//75)
+    if option == "spectral":
+        from sklearn.manifold import SpectralEmbedding
+        embedding = SpectralEmbedding(random_state = 42, n_neighbors = players_stats_agg.shape[0]//75)
+        #stats_transformed = embedding.fit_transform(players_stats_agg.iloc[:,5:])
+
+    elif option == 'tsne':
+        from sklearn.manifold import TSNE
+        embedding = TSNE()
+        #stats_transformed = embedding.fit_transform(players_stats_agg.iloc[:,5:])
+
+    elif option == 'umap':
+        import umap.umap_ as umap
+        embedding = umap.UMAP(random_state = 42)
+        #stats_transformed = embedding.fit_transform(players_stats_agg.iloc[:,5:])
+
+    elif option == 'pca':
+        from sklearn.decomposition import PCA
+        embedding = PCA(n_components=2)
+
+    else:
+        print('Please enter a valid embedding.')
+
     stats_transformed = embedding.fit_transform(players_stats_agg.iloc[:,5:])
 
-    players_stats_spectral["embedding_1"] = stats_transformed[:,0]
-    players_stats_spectral["embedding_2"] = stats_transformed[:,1]
+    players_stats["embedding_1"] = stats_transformed[:,0]
+    players_stats["embedding_2"] = stats_transformed[:,1]
     
-    return players_stats_spectral, embedding, players_data['position'], data_names
-
-    display(players_stats_spectral.head())
+    return players_stats, embedding, players_data['position'], data_names
 
     fig, ax = plt.subplots()
     sns.scatterplot(players_stats_spectral["embedding_1"], players_stats_spectral["embedding_2"], hue=players_data['position'], legend='full')
@@ -220,64 +304,11 @@ def spectral_embeddings():
     cursor.connect("add", lambda sel: sel.annotation.set_text(data_names[sel.index]))
     plt.show()
 
-#players_data[players_data['id'] == get_playerID('Julius Randle')]
-
-
-# ### TSNE
-
-def tsne_embeddings():
-    from sklearn.manifold import TSNE
-
-    players_stats_tsne = copy.deepcopy(players_stats_agg.iloc[:,:5])
-    data_names = list(players_data['player_names'])
-
-    embedding = TSNE()
-    stats_transformed = embedding.fit_transform(players_stats_agg.iloc[:,5:])
-
-    players_stats_tsne["embedding_1"] = stats_transformed[:,0]
-    players_stats_tsne["embedding_2"] = stats_transformed[:,1]
-    
-    return players_stats_tsne, embedding, players_data['position'], data_names
-            
-
-    fig, ax = plt.subplots()
-    sns.scatterplot(X_embedded[:,0], X_embedded[:,1], hue=players_data['position'], legend='full')
-    cursor = mplcursors.cursor(hover=True)
-    cursor.connect("add", lambda sel: sel.annotation.set_text(data_names[sel.index]))
-
-    plt.show()
-
-
-# ### UMAP
-
-def umap_embeddings():
-    import umap.umap_ as umap
-
-    players_stats_umap = copy.deepcopy(players_stats_agg.iloc[:,:5])
-    data_names = list(players_data['player_names'])
-
-    embedding = umap.UMAP(random_state = 42)
-    stats_transformed = embedding.fit_transform(players_stats_agg.iloc[:,5:])
-
-    players_stats_umap["embedding_1"] = stats_transformed[:,0]
-    players_stats_umap["embedding_2"] = stats_transformed[:,1]
-    
-    return players_stats_umap, embedding, players_data['position'], data_names
-
-    fig, ax = plt.subplots()
-    sns.scatterplot(embedding[:,0], embedding[:,1], hue=players_data['position'], legend='full')
-    cursor = mplcursors.cursor(hover=True)
-    cursor.connect("add", lambda sel: sel.annotation.set_text(data_names[sel.index]))
-
-    plt.show()
-
 # center anschauen -> Why Daniel Theis shown as F?
 
 # pro position:
 # pos = 'F'
 # data_pos = players_stats_agg[players_data['position'] == pos].iloc[:,5:]
-
-
 
 
 
@@ -333,7 +364,7 @@ class RecommendationEngine:
                 ind_player = players_data[players_data['id'] == self.player_id].index.tolist()[0]
                 
                 # get starting five of team
-                start_five_team = list(self.starting_five(self.team, names = False).keys())
+                start_five_team = list(starting_five(self.team, names = False).keys())
                 start_five_team.remove(self.player_id)
                 
                 data_team = pd.concat([players_stats_agg[players_stats_agg['PLAYER_ID'] == start_five_team[i]] for i in range(len(start_five_team))])
@@ -348,22 +379,16 @@ class RecommendationEngine:
                 #print(f"final embedding: {emd_ideal_player}")
                 
                 
-                fig, ax = plt.subplots()
-                print('Here2:')
-                print(self.stats.head())
-                ax.scatter(self.stats.iloc[:,5], self.stats.iloc[:,6], c= 'black')#players_data['position'].map({'C':'orange', 'F':'black', 'G':'blue'}))
-                #cursor = mplcursors.cursor(hover=True)
-                #cursor.connect("add", lambda sel: sel.annotation.set_text(data_names[sel.index]))
-                ax.scatter(emd_ideal_player[0,0], emd_ideal_player[0,1], c='green')
-                ax.scatter(self.stats.iloc[ind_player,0], self.stats.iloc[ind_player,1], c='red')
-                #plt.legend()
-
-                plt.show()
+                ##fig, ax = plt.subplots()
+                ##ax.scatter(self.stats.iloc[:,5], self.stats.iloc[:,6], c= 'black')#players_data['position'].map({'C':'orange', 'F':'black', 'G':'blue'}))
+                ##ax.scatter(emd_ideal_player[0,0], emd_ideal_player[0,1], c='green')
+                ##ax.scatter(self.stats.iloc[ind_player,5], self.stats.iloc[ind_player,6], c='red')
+                ##plt.show()
 
 
                 closest_players = []
                 closest_idx, closest_distances = self.closest_node(emd_ideal_player, stats_num)
-                
+            
             for i in range(len(closest_idx)):
                 id_player = stats.reset_index()['PLAYER_ID'][closest_idx[i]]
                 closest_players.append({'player': players_data[players_data['id'] == id_player]['player_names'].iloc[0],
@@ -377,10 +402,10 @@ class RecommendationEngine:
             salary_input_player = self.player_salary(self.player_name)
             print(salary_input_player)
             
-            self.plot_distance(closest_players)
+            ##self.plot_distance(closest_players)
             p_ids = [stats.reset_index()['PLAYER_ID'][closest_idx[i]] for i in range(len(closest_idx))]
             p_ids.append(self.player_id)
-            self.plot_distance2(p_ids)
+            ##self.plot_distance2(p_ids)
 
             
             print(f'\nRecommended Player: {rec_player}')
@@ -409,9 +434,9 @@ class RecommendationEngine:
             #                   ['Old Salary', f"New Salary by adding {rec_player}", 'Limit salary'],
             #                   self.team)
 
-            visualize_capspace(team_salary.append(new_team_salary), 
-                               ['Old Salary', f"New Salary by adding {rec_player}"],
-                               self.team)
+            ##visualize_capspace(team_salary.append(new_team_salary), 
+            ##                   ['Old Salary', f"New Salary by adding {rec_player}"],
+            ##                   self.team)
             
             return rec_player
         
@@ -448,7 +473,6 @@ class RecommendationEngine:
         for i in range(len(change_salary)):
             df_new_salary.iloc[0, 3+i] += change_salary[i]
         return df_new_salary
-    
     
     def team_lastSeason(self):
         return list(players_data[players_data['id'] == self.player_id]['team'])[0]
@@ -524,72 +548,11 @@ class RecommendationEngine:
         return plt.show()
     
     
-    def starting_five(self, team_abb: str, names = False):
-        positions = {'F': 2, 'C': 1, 'G': 2}
-        data_team = boxscores[(boxscores['TEAM_ABBREVIATION'] == team_abb) & (boxscores['START_POSITION'].notnull())].loc[:, ['PLAYER_ID', 'START_POSITION']]
-        players_team = list(players_data[players_data['team'] == team_abb]['id'])
-
-        if list(data_team['START_POSITION'].unique()) != list(positions.keys()):
-            print('Error')
-
-        players_pos = list()
-        for pos in positions.keys():
-            data_team_pos = data_team[data_team['START_POSITION'] == pos]['PLAYER_ID'].astype(int)
-            count_pos = Counter(data_team_pos)
-            count_pos = dict(sorted(count_pos.items(), key=lambda item: item[1], reverse=True))
-            del_players = []
-            for i in range(len(count_pos)):
-                player = list(count_pos.keys())[i]
-                if player not in players_team: # only keep players which are still active and belong to team at end of last season
-                    del_players.append(player)
-
-            for p in del_players:
-                del count_pos[p]
-            players_pos.append(count_pos)
-
-
-        # delete player from positions where he played less frequently
-        players = [list(players_pos[i].keys()) for i in range(len(positions))]
-        players = dict(Counter([x for l in players for x in l]))
-        dupl_players = [k for k,v in players.items() if v > 1]
-        for dupl_pl in dupl_players:
-            counts = []
-            for i in range(len(players_pos)):
-                try:
-                    counts.append(players_pos[i][dupl_pl])
-
-                except KeyError:
-                    counts.append(0)
-            keep_pos = np.argmax(counts)
-            for j in range(len(players_pos)):
-                if j == keep_pos:
-                    continue
-                try:
-                    del players_pos[j][dupl_pl]
-
-                except KeyError:
-                    continue
-
-        starting_five = {}
-        for i in range(len(positions)):
-            pos = list(positions.keys())[i]
-            dict_pos = players_pos[i]
-            pos_players = list(dict_pos.keys())[:(positions[pos])]
-            for i in range(len(pos_players)):
-                if names:
-                    name = list(players_data[players_data['id'] == pos_players[i]]['player_names'])[0]
-                    starting_five[name] = pos 
-
-                else:
-                    starting_five[pos_players[i]] = pos                               
-
-        return starting_five
-    
     def get_maxs_teams(self):
         performance_teams = np.zeros((teams_data.shape[0], len(players_stats_agg.columns)-5))
         for i in range(teams_data.shape[0]):
             team_abb = list(teams_data['abbreviation'])[i]
-            start_five_team = list(self.starting_five(team_abb, names = False).keys())
+            start_five_team = list(starting_five(team_abb, names = False).keys())
             data_team = pd.concat([players_stats_agg[players_stats_agg['PLAYER_ID'] == start_five_team[i]] for i in range(len(start_five_team))])
             performance_teams[i, :] = np.array(data_team.iloc[:,5:].sum(axis=0))
 
@@ -612,11 +575,6 @@ class RecommendationEngine:
 # Exemplary execution
 
 if __name__ == "__main__":
-    data_emb, emb, _, _ = umap_embeddings()
+    data_emb, emb, _, _ = embeddings('umap')
     sample_recommendation = RecommendationEngine(data_emb, "Anthony Davis", emb, 'Fit')
     sample_recommendation.recommend()
-
-
-# To-Do:
-# - first plot?
-# - get first operations into function
