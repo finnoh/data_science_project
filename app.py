@@ -174,15 +174,3 @@ def selected_player(value):
 
 if __name__ == '__main__':
     app.run_server(debug=True)
-
-
-
-
-# add correct output (incl. graphs) from recommendation
-# add dropdown for similar or fit
-# filter out player to be recommended
-# add Spinner (via output von model?)
-
-# add picture of player below selection
-# add "loading" button? https://stackoverflow.com/questions/54439548/display-loading-symbol-while-waiting-for-a-result-with-plot-ly-dash
-# https://community.plotly.com/t/updating-a-dropdown-menus-contents-dynamically/4920
