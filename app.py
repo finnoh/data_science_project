@@ -9,7 +9,8 @@ import plotly.express as px
 import plotly.graph_objs as go
 import pandas as pd
 from src.get_data import get_clean_player_data, get_team_image
-from src.utils_dash import _player_selector, _team_selector, _link_team_website, _team_full_name
+from src.utils_dash import _player_selector, _team_selector, _link_team_website, _team_full_name, _get_team_id, \
+    _get_mvp_id_team, _player_full_name, _mvp_descr_builder
 
 import dash_bootstrap_components as dbc
 
@@ -23,6 +24,7 @@ player_selector = _player_selector()
 team_selector = _team_selector()
 
 # APP ELEMENTS
+
 offcanvas = html.Div(
     [
         dbc.Button("Further Team Information", id="teamselect-open-offcanvas", n_clicks=0, color='light'),
@@ -42,45 +44,44 @@ offcanvas = html.Div(
     ]
 )
 
-left_jumbotron = dbc.Col(
-    html.Div(
-        [
-            html.H2("Select", className="display-3"),
-            dcc.Dropdown(
-                id='teamselect-dropdown',
-                options=[{'label': team,
-                          'value': team_selector.iloc[
-                              i, 1]} for i, team in
-                         enumerate(
-                             team_selector.label.unique())],
-                value='ATL'
-            ),
-            html.Hr(className="my-2"),
-            html.Div(
-                [html.Img(id='teamselect-image'),
-                 offcanvas],
-                style={'margin': 'auto'}
-            )
+col_teamname = dbc.Col(html.Div(
+    [html.H2(id='teamselect-output-container',
+             className="display-3", style={'margin': 'auto', 'width': '100%', 'display': 'inline-block'}), offcanvas]),
+    md=10)
 
-        ],
-        className="h-100 p-5 bg-light border rounded-3",
-    ),
-    md=4,
+col_logo = dbc.Col(html.Div(
+    [html.Img(id='teamselect-image', style={'margin': 'auto', 'width': '100%', 'display': 'inline-block'})]), md=2)
+
+starplayer = dbc.Alert(
+    [
+        html.H4("Starplayer", className="alert-heading"),
+        html.P(id='teamselect-mvp-descr'),
+        html.Hr(),
+        html.P(
+            id='teamselect-mvp-name',
+            className="mb-0",
+        ),
+    ]
 )
 
-middle_jumbotron = dbc.Col(
-    html.Div(
-        [html.Div(
-            [html.H2(id='teamselect-output-container', className="display-3")]),
-            html.Hr(className="my-2")
-        ],
-        className="h-100 p-5 bg-light border rounded-3",
-    ),
-    md=8,
-)
+right_part = dbc.Col([html.Div(
+    [html.Img(id='teamselect-mvp-image', style={'margin': 'auto', 'width': '80%', 'display': 'inline-block'})]), starplayer],
+    md=4)
+
+left_jumbotron = dbc.Col([dbc.Row([col_teamname, col_logo], className="align-items-md-stretch"),
+                          html.Hr(className="my-2"),
+                          dcc.Dropdown(
+                              id='teamselect-dropdown',
+                              options=[{'label': team,
+                                        'value': team_selector.iloc[
+                                            i, 1]} for i, team in
+                                       enumerate(
+                                           team_selector.label.unique())],
+                              value='ATL'
+                          )], md=8, className="h-100 p-5 bg-light border rounded-3")
 
 jumbotron = dbc.Row(
-    [left_jumbotron, middle_jumbotron],
+    [left_jumbotron, right_part],
     className="align-items-md-stretch",
 )
 
@@ -132,17 +133,25 @@ def update_output(value):
 
 
 @app.callback(
-    Output('teamselect-output-container', 'children'),
+    [Output('teamselect-output-container', 'children'),
+     Output('offcanvas', 'title')],
     Input('teamselect-dropdown', 'value'))
 def update_output(value):
-    return _team_full_name(value)
+    return _team_full_name(value), _team_full_name(value)
 
 
 @app.callback(
-    Output('offcanvas', 'title'),
-    Input('teamselect-dropdown', 'value'))
+    [dash.dependencies.Output('teamselect-mvp-image', 'src'),
+     dash.dependencies.Output('teamselect-mvp-descr', 'children'),
+     dash.dependencies.Output('teamselect-mvp-name', 'children')],
+    [dash.dependencies.Input('teamselect-dropdown', 'value')])
 def update_output(value):
-    return _team_full_name(value)
+    team_id = _get_team_id(value)
+    mvp_data, url_image = _get_mvp_id_team(team_id=team_id, season='2020-21')
+    mvp_name, mvp_pos = _player_full_name(player_id=mvp_data[0])
+    descr = _mvp_descr_builder(mvp_name=mvp_name, mvp_position=mvp_pos, mvp_data=mvp_data)
+
+    return url_image, descr, mvp_name
 
 
 @app.callback(
