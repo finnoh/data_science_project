@@ -168,7 +168,7 @@ def get_starting_five(value):
     [Input('teamRec-starting5-dropdown', 'value')])
 def selected_player(value):
     data_emb, emb, _, _ = recommmendation_engine.embeddings('umap')
-    sample_recommendation = recommmendation_engine.RecommendationEngine(data_emb, value, emb, 'Fit')
+    sample_recommendation = recommmendation_engine.RecommendationEngine(data_emb, value, emb, 'Similar')
     r = sample_recommendation.recommend()
     return f"{r} was returned"
 
@@ -180,6 +180,8 @@ if __name__ == '__main__':
 
 # add correct output (incl. graphs) from recommendation
 # add dropdown for similar or fit
+# filter out player to be recommended
+# add Spinner (via output von model?)
 
 # add picture of player below selection
 # add "loading" button? https://stackoverflow.com/questions/54439548/display-loading-symbol-while-waiting-for-a-result-with-plot-ly-dash
