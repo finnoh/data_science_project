@@ -8,6 +8,7 @@ import plotly.graph_objs as go
 import pandas as pd
 from src.get_data import get_clean_player_data
 from src.utils_dash import _player_selector
+import recommmendation_engine
 
 import dash_bootstrap_components as dbc
 
@@ -18,6 +19,8 @@ app = dash.Dash(__name__, title="NBA GM")
 
 # SETUP STATIC DATA
 player_selector = _player_selector()
+player_data = recommmendation_engine.get_players_data()
+team_data = recommmendation_engine.get_teams_data()
 
 # APP LAYOUT
 
@@ -49,8 +52,50 @@ app.layout = html.Div(children=[
 
             dbc.Container([
                 dcc.Graph(id='playerselect-graph1')
-            ])]),
-        dcc.Tab(label='Tab Three', value='tab-3', children=html.H1("Yet Another Page"))])
+            ])
+        ]),
+
+        dcc.Tab(label='Recommendation engine', value='tab-3', children=[
+            html.H1(children='Recommendation Engine for NBA players'),
+            html.Div(
+                [dcc.Dropdown(
+                    id='teamRec-select-dropdown',
+                    options=[{'label': list(team_data['full_name'])[i], 'value': abb} for i, abb in enumerate(team_data['abbreviation'])],
+                    placeholder='Select a Team',
+                    value='LAL'
+                )], style={'width': '20%'}            
+                ),
+            html.Div(
+                [dcc.Dropdown(
+                    id='teamRec-starting5-dropdown',
+                    placeholder='Select a player',
+                    value='LeBron James'
+                )], style={'width': '20%'}            
+                ),
+            html.Div(id='teamRec-player-dropdown')
+            ]
+        ),
+
+        dcc.Tab(label='Dimensionality Reduction', value='tab-4', children=[
+            html.H1(children='Projections of active NBA players into 2D'), 
+            html.Div(
+                [dcc.Dropdown(
+                    id='dimreduction-dropdown',
+                    options=[{'label': 'Sepectral Embedding', 'value': 'spectral'},
+                             {'label': 'TSNE', 'value': 'tsne'},
+                             {'label': 'UMAP', 'value': 'umap'},
+                             {'label': 'PCA', 'value': 'pca'},],
+                    placeholder='Select a dimensionality reduction technique',
+                    value='spectral'
+                )], style={'width': '20%'}
+            ),
+            dbc.Container([
+                dcc.Graph(id='dimreduction-graph1')
+            ])
+            ]
+        )
+    ])
+
 ])
 
 
@@ -83,18 +128,49 @@ def update_player(value):
     return data, columns, fig
 
 @app.callback(
-    dash.dependencies.Output('playerselect-image', 'src'),
-    [dash.dependencies.Input('playerselect-dropdown', 'value')])
+    Output('playerselect-image', 'src'),
+    [Input('playerselect-dropdown', 'value')])
 def update_image_src(value):
     return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(value)}.png"
 
 @app.callback(
-    dash.dependencies.Output('playerselect-output-container-wiki', 'children'),
-    [dash.dependencies.Input('playerselect-dropdown', 'value')])
+    Output('playerselect-output-container-wiki', 'children'),
+    [Input('playerselect-dropdown', 'value')])
 def _player_wiki_summary(value):
     wiki_wiki = wikipediaapi.Wikipedia('en')
-    page_py = wiki_wiki.page(value)
-    return "player wikipedia summary"
+    df = player_selector
+    name = list(df[df['value'] == value]['label'])[0]
+    page_py = wiki_wiki.page(name)
+    if page_py.exists():
+        return page_py.summary
+    else:
+        return f"No Wikipedia page found for {str(name)}"
+
+@app.callback(
+    Output('dimreduction-graph1', 'figure'),
+    [Input('dimreduction-dropdown', 'value')])
+def get_emb(value):
+    players_stats, _, positions, data_names = recommmendation_engine.embeddings(value)
+    fig = px.scatter(players_stats, x="embedding_1", y="embedding_2", color = positions, hover_name = data_names)
+    fig.update_layout(transition_duration=500)
+    return fig
+
+@app.callback(
+    Output('teamRec-starting5-dropdown', 'options'),
+    [Input('teamRec-select-dropdown', 'value')])
+def get_starting_five(value):
+    players_team = recommmendation_engine.starting_five(value, names=True)
+    return [{'label': i, 'value': i} for i in players_team.keys()]
+
+
+@app.callback(
+    Output('teamRec-player-dropdown', 'children'),
+    [Input('teamRec-starting5-dropdown', 'value')])
+def selected_player(value):
+    data_emb, emb, _, _ = recommmendation_engine.embeddings('umap')
+    sample_recommendation = recommmendation_engine.RecommendationEngine(data_emb, value, emb, 'Similar')
+    r = sample_recommendation.recommend()
+    return f"{r} was returned"
 
 if __name__ == '__main__':
     app.run_server(debug=True)
