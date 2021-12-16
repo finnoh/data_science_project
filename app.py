@@ -101,7 +101,7 @@ jumbotron = dbc.Row(
 
 app.layout = html.Div(children=[
     dcc.Tabs(id='tabs-example', value='tab-1', children=[
-        dcc.Tab(dcc.Tab(label='Player Bio', value='tab-1', children=[
+        dcc.Tab(label='Player Bio', value='tab-1', children=[
             html.H1(children='NBA GM'),
             html.Div([html.Div(
                 [html.Img(id='playerselect-image')]
@@ -119,7 +119,7 @@ app.layout = html.Div(children=[
             html.Div(children=[html.Div(id='playerselect-output-container-wiki')],
                      style={'width': '49%', 'display': 'inline-block'})
 
-        ])),
+        ]),
         dcc.Tab(label='Performance', value='tab-2', children=[dbc.Container([
             dash_table.DataTable(
                 id='playerselect-table'
@@ -204,7 +204,6 @@ def update_output(value):
     descr = _mvp_descr_builder(mvp_name=mvp_name, mvp_position=mvp_pos, mvp_data=mvp_data)
 
     return url_image, descr, mvp_name
-
 
 @app.callback(
     Output('teamselect-link-button', 'children'),
