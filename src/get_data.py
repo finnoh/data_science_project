@@ -7,6 +7,7 @@ from nba_api.stats.static import teams
 from PIL import Image
 import requests
 from tqdm import tqdm
+from os import listdir
 import time
 
 
@@ -95,3 +96,52 @@ def get_player_image(player_id):
     :return: Image, also opens the image
     """
     return Image.open(requests.get(f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", stream=True).raw)
+
+def get_team_image(team_abb, season: str = '2021-21'):
+    """
+
+    :param team_abb:
+    :return:
+    """
+    url_start = "http://stats.nba.com/media/img/teams/logos/season/"
+    url_end = '_logo.svg'
+    url = url_start + season + '/' + team_abb + url_end
+
+    Image.open(requests.get(url, stream=True).raw)
+
+
+def load_boxscore_schedule(data_path: str="./data/season_prediction/"):
+    """
+
+    :param data_path:
+    :return:
+    """
+
+    # init storage
+    list_schedule, list_boxscore, obs_schedule, obs_boxscore = list(), list(), list(), list()
+    list_season_id = [['2014-15'], ['2015-16'], ['2016-17'], ['2017-18'],
+                      ['2018-19'], ['2019-20'], ['2020-21']]
+
+    # load and divide datafiles
+    for file in sorted(listdir(data_path)):
+
+        if file.startswith("boxscores"):
+            tmp = pd.read_csv(data_path + file, dtype={'GAME_ID':str})
+            list_boxscore.append(tmp)
+            obs_boxscore.append(tmp.shape[0])
+
+        elif file.startswith("schedule"):
+            tmp = pd.read_csv(data_path + file, dtype={'GAME_ID':str})
+            list_schedule.append(tmp)
+            obs_schedule.append(tmp.shape[0])
+
+        else:
+            raise ValueError("Neither boxscore nor schedule!")
+
+        print(file + ' loaded')
+
+    # check check
+    assert len(list_schedule) == len(list_boxscore), 'Not the same amount of seasons!'
+
+    # transform to pandas dataframes
+    return pd.concat(list_schedule), pd.concat(list_boxscore)
