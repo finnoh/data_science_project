@@ -8,7 +8,7 @@ import plotly.graph_objs as go
 import pandas as pd
 from src.get_data import get_clean_player_data
 from src.utils_dash import _player_selector
-import recommmendation_engine
+#import recommmendation_engine
 from hotzone import hotzone
 
 import dash
@@ -32,7 +32,7 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 from src.get_data import get_clean_player_data
 from src.utils_dash import _player_selector
-import recommmendation_engine
+import recommmendation_engine_2 as recommmendation_engine
 
 import dash_bootstrap_components as dbc
 
@@ -46,7 +46,7 @@ player_selector = _player_selector()
 team_selector = _team_selector()
 player_data = recommmendation_engine.get_players_data()
 team_data = recommmendation_engine.get_teams_data()
-
+players_stats = recommmendation_engine.get_players_stats()
 
 # APP ELEMENTS
 
@@ -158,6 +158,50 @@ app.layout = html.Div(children=[
                     value='Similar'
                 )], style={'width': '20%'}
             ),
+
+            html.Div(
+                [dcc.Checklist(
+                        id="checklist-allColumns",
+                        options=[{"label": "Select All", "value": "All"}],
+                        value=['All'],
+                        labelStyle={"display": "inline-block"},
+                    ),
+                    dcc.Checklist(
+                        id="checklist-columns",
+                        options=[
+                       #     {"label": "Player Age", "value": "PLAYER_AGE"},
+                       #     {"label": "Games Play", "value": "GP"},
+                       #     {"label": "GS", "value": "GS"},
+                       #     {"label": "MIN", "value": "MIN"},
+                            {"label": "FGM", "value": "FGM"},
+                            {"label": "FGA", "value": "FGA"},
+                            {"label": "FG_PCT", "value": "FG_PCT"},
+                            {"label": "FG3M", "value": "FG3M"},
+                            {"label": "FG3A", "value": "FG3A"},
+                            {"label": "FG3_PCT", "value": "FG3_PCT"},
+                            {"label": "FTM", "value": "FTM"},
+                            {"label": "FTA", "value": "FTA"},
+                            {"label": "FT_PCT", "value": "FT_PCT"},
+                            {"label": "Offensive Rebounds", "value": "OREB"},
+                            {"label": "Defensive Rebounds", "value": "DREB"},
+                            {"label": "Rebounds", "value": "REB"},
+                            {"label": "Assists", "value": "AST"},
+                            {"label": "Steals", "value": "STL"},
+                            {"label": "Blocks", "value": "BLK"},
+                            {"label": "Turnovers", "value": "TOV"},
+                            {"label": "Personal Fouls", "value": "PF"},
+                            {"label": "Points", "value": "PTS"},
+                        ],
+                        value=[],
+                        labelStyle={"display": "inline-block"}, #'flex'
+                    ),
+                ]),
+
+
+#Index(['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION',
+#       'PLAYER_AGE', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A',
+#       'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB', 'AST', 'STL',
+#       'BLK', 'TOV', 'PF', 'PTS'],
 
             html.Div([html.Div(
                 [html.Img(id='teamRep-image')]
@@ -350,21 +394,30 @@ def _player_wiki_summary(value):
     [Input('playerselect-dropdown', 'value')])
 def hotzone_graph(value):
     shots = hotzone(value)
-    fig = px.scatter(shots, x="LOC_X", y="LOC_Y", color = 'SHOT_MADE_FLAG', title= "Hot zone",
-                    width=1200, height=1000)
+
+    #import plotly.figure_factory as ff
+    #fig = ff.create_hexbin_mapbox(
+    #    data_frame=shots, lat="LOC_X", lon="LOC_Y",
+    #    nx_hexagon=100, opacity=0.9, labels={"color": "SHOT_MADE_FLAG"})
+    #fig.update_layout(mapbox_style = "white-bg", margin=dict(b=0, t=0, l=0, r=0), template='simple_white')
+    shots = shots[shots['SHOT_MADE_FLAG'] == 1]
+    fig = px.density_heatmap(shots, x="LOC_X", y="LOC_Y", range_x = [-275, 275], range_y = [-20, 400], nbinsx=20, nbinsy=20, color_continuous_scale="Viridis")
+    #fig = px.scatter(shots, x="LOC_X", y="LOC_Y", color = 'SHOT_MADE_FLAG', title= "Hot zone",
+    #                width=1200, height=1000)
     fig.update_layout(transition_duration=500, template='simple_white')
     return fig
-
+# or: https://plotly.com/python/hexbin-mapbox/
 
 @app.callback(
     Output('dimreduction-graph1', 'figure'),
     [Input('dimreduction-dropdown', 'value')])
 def get_emb(value):
-    players_stats, _, positions, data_names, player_stats = recommmendation_engine.embeddings(value)
+    stats_agg, stats_agg_notTransformed = recommmendation_engine.aggregate_data(players_stats, [7/10, 2/10, 1/10])
+    players_stats_emb, _, positions, data_names, player_stats = recommmendation_engine.embeddings(value, stats_agg, stats_agg_notTransformed)
     name_emb = {'spectral': 'Sepectral Embedding', 'tsne': 'TSNE', 'umap': 'UMAP', 'pca': 'PCA'}
 #    player_stats.positions = positions
 #    player_stats.head()
-    fig = px.scatter(players_stats, x="embedding_1", y="embedding_2", color = positions, hover_name = data_names, 
+    fig = px.scatter(players_stats_emb, x="embedding_1", y="embedding_2", color = positions, hover_name = data_names, 
                     hover_data={'embedding_1':False, 
                                 'embedding_2':False, 
                                 'Position': positions,
@@ -401,12 +454,20 @@ def update_image_repTeam(value):
 
 @app.callback(
     Output('teamRec-player-dropdown', 'children'),
-    [Input('teamRec-starting5-dropdown', 'value'), Input('recommendation-type', 'value')])
-def selected_player(rep_player, rec_type):
-    data_emb, emb, _, _, _ = recommmendation_engine.embeddings('umap')
-    sample_recommendation = recommmendation_engine.RecommendationEngine(data_emb, rep_player, emb, rec_type) # 'Similar'
+    [Input('teamRec-starting5-dropdown', 'value'), Input('recommendation-type', 'value'), Input("checklist-columns", "value")])
+def selected_player(rep_player, rec_type, cols):  
+    if 'PLAYER_AGE' in cols:
+        sel_col = ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE' 'GP', 'GS', 'MIN']
+        cols.remove('PLAYER_AGE')
+    else:
+        sel_col = ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'GP', 'GS', 'MIN']
+    stats_agg, stats_agg_notTransformed = recommmendation_engine.aggregate_data(players_stats, [7/10, 2/10, 1/10], sel_col+cols)
+    data_emb, emb, _, _, _ = recommmendation_engine.embeddings('umap', stats_agg, stats_agg_notTransformed)
+    sample_recommendation = recommmendation_engine.RecommendationEngine(data_emb, rep_player, emb, rec_type, stats_agg) # 'Similar'
     r = sample_recommendation.recommend()
     return r
+
+#stats_agg, stats_agg_notTransformed = aggregate_data(players_stats, [7/10, 2/10, 1/10], ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT'])
 
 #@app.callback(
 #    Output('teamRec-player-name', 'children'),
@@ -427,7 +488,57 @@ def update_image_recPlayer(children):
 def update_output(value):
     return recommmendation_engine.visualize_capspace_team_plotly(value)
 
+@app.callback(
+    Output("checklist-columns", "value"),
+    [Input("checklist-allColumns", "value")],
+    [State("checklist-columns", "options")],
+)
+def select_all_none(all_selected, options):
+    all_or_none = []
+    all_or_none = [option["value"] for option in options if all_selected]
+    return all_or_none
+
 
 if __name__ == '__main__':
     app.run_server(debug=True)
+
+
+# Recommendation Tab:
+# which embedding, fit/similar, outputs
+# only umap works in recommendation engine
+# add correct output (incl. graphs) from recommendation
+# option: age included, age excluded for best fit
+# which player fit best to strategy
+# cut off for minutes played; player obere bubble?
+# age rausnehmen?
+# box für user mit attributen zur auswahl
+# zur auswahl geben wie saisons gewichtet werden
+
+# Finn: 
+# 5 wichtigsten attribute pro spieler angeben -> wie angeben @ Finn?
+# performance plot bei steph curry?
+# finns parameter einbauen
+
+# Präsi:
+# story kommunizieren, data management (wie daten, wie transformiert?), prozess dokumentieren, auch methodik zeigen, was sind unsere Fragen? -> wie passen Modelle zusammen
+# wird nicht benotet
+# columns for projection in präsi
+# skizze for ideal präsi
+# max. 15 min präsi
+
+# Done:
+# add Spinner (via output von model?) https://www.youtube.com/watch?v=t1bKNj021do
+# performance & hot zone, logo player -> player
+# add picture of player below selection
+# add "loading" button? https://stackoverflow.com/questions/54439548/display-loading-symbol-while-waiting-for-a-result-with-plot-ly-dash
+# https://community.plotly.com/t/updating-a-dropdown-menus-contents-dynamically/4920
+# https://dash-bootstrap-components.opensource.faculty.ai/docs/components/
+# NBA: difference mit weights scales
+# add dropdown for similar or fit
+
+
+# additional scraping of: https://www.basketball-reference.com/
+# steph curry -> louis williams?
+# # IDs in file als string importen
+# dim reduction (search for player)
 

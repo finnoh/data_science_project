@@ -3,6 +3,8 @@ import numpy as np
 import seaborn as sns
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objs as go
 from sklearn.neighbors import NearestNeighbors
 import requests
 from bs4 import BeautifulSoup
@@ -93,18 +95,22 @@ def combine_seasons(players_stats, player_id, weights):
     dict_final = dict(df_final.iloc[0])
     return dict_final
 
-def aggregate_data(players_stats, w, cols, norm = True):
+def aggregate_data(players_stats, w, cols = None, norm = True):
     players_stats = players_stats[(players_stats['SEASON_ID'] == '2020-21') | 
                                   (players_stats['SEASON_ID'] == '2019-20') | 
                                   (players_stats['SEASON_ID'] == '2018-19')].reset_index().drop(columns=['index'])
 
-    if len(w) > 0:
-        players_stats = players_stats[cols]
-
+    #cols = [list(players_stats.columns)[i] for i in cols]
 
     col_div = ['MIN', 'FGM', 'FGA', 'FG3M', 'FG3A', 'FTM', 'FTA', 'OREB', 'DREB', 'REB', 'AST', 'STL',
                 'BLK', 'TOV', 'PF', 'PTS']
-    col_idx =  [list(players_stats.columns).index(i) for i in col_div]
+
+    if cols is not None:
+        players_stats = players_stats[cols]    
+        col_idx =  [list(players_stats.columns).index(i) for i in col_div if i in cols]
+
+    else:
+        col_idx =  [list(players_stats.columns).index(i) for i in col_div]
 
     for i in range(players_stats.shape[0]):
         n_min = players_stats["MIN"][i] #  per 'GP' or per 'MIN'?
@@ -183,6 +189,19 @@ def visualize_capspace_team(team_abb):
     plt.show()
     return capspace_team
 
+def visualize_capspace_team_plotly(team_abb):
+    if team_abb in list(teams_salaries['Abb']):
+        capspace_team = teams_salaries[teams_salaries['Abb'] == team_abb].reset_index(drop=True)
+        y_values = capspace_team.iloc[0, 3:]
+    else:
+        print('Please input a correct abbreviation of an NBA team')
+        return 0
+
+    df_plot = pd.DataFrame(data={'Season': ['2021/22', '2022/23', '2023/24', '2024/25'], 'Cap Space': list(y_values)})
+
+    fig = px.line(df_plot, x="Season", y="Cap Space", title=f' Cap Space Development')
+
+    return fig.update_layout(template="simple_white")
 
 def luxury_tax(cap_space):
     cap_taxed = -(cap_space + (136606000 - 112414000)) # difference between Cap Maximum ($112,414,000) & Luxury Tax Threshold ($136,606,000)
@@ -566,9 +585,16 @@ class RecommendationEngine:
 
         maxs = np.amax(performance_teams, axis=0) 
         # oder: umdrehen bei import via - die column?
-        maxs[0] = np.amin(performance_teams[:,0]) # PLAYER_AGE
-        maxs[19] = np.amin(performance_teams[:,19]) # PF
-        maxs[20] = np.amin(performance_teams[:,20]) # TOV
+        col_min = ['PLAYER_AGE', 'PF', 'TOV']
+        ind_min = [self.stats_agg.columns.get_loc(i)-5 for i in col_min if i in self.stats_agg.columns]
+        #self.stats_agg[]
+
+        for i in range(len(ind_min)):
+            maxs[i] = np.amin(performance_teams[:,i])
+
+        #maxs[0] = np.amin(performance_teams[:,0]) # PLAYER_AGE
+        #maxs[19] = np.amin(performance_teams[:,19]) # PF
+        #maxs[20] = np.amin(performance_teams[:,20]) # TOV
 
         maxs = maxs
         #display(maxs)
@@ -583,7 +609,8 @@ class RecommendationEngine:
 # Exemplary execution
 
 if __name__ == "__main__":
-    stats_agg, stats_agg_notTransformed = aggregate_data(players_stats, [7/10, 2/10, 1/10])
+    stats_agg, stats_agg_notTransformed = aggregate_data(players_stats, [7/10, 2/10, 1/10], ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT'])
+    # [0, 1, 2, 3, 4, 5, 6, 7, 8])
     data_emb, emb, _, _, _ = embeddings('umap', stats_agg, stats_agg_notTransformed)
     sample_recommendation = RecommendationEngine(data_emb, "Draymond Green", emb, 'Fit', stats_agg)
     sample_recommendation.recommend()
