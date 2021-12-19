@@ -149,6 +149,16 @@ app.layout = html.Div(children=[
 
         dcc.Tab(label='Recommendation engine', value='tab-3', children=[
             html.H2(children='Recommendation Engine for NBA players', className="display-3"),
+            html.Div(
+                [dcc.Dropdown(
+                    id='recommendation-type',
+                    options=[{'label': 'Similar player', 'value': 'Similar'},
+                             {'label': 'Complementary player', 'value': 'Fit'}],
+                    placeholder='Select a recommendation technique',
+                    value='Similar'
+                )], style={'width': '20%'}
+            ),
+
             html.Div([html.Div(
                 [html.Img(id='teamRep-image')]
 
@@ -191,7 +201,7 @@ app.layout = html.Div(children=[
                     options=[{'label': 'Sepectral Embedding', 'value': 'spectral'},
                              {'label': 'TSNE', 'value': 'tsne'},
                              {'label': 'UMAP', 'value': 'umap'},
-                             {'label': 'PCA', 'value': 'pca'},],
+                             {'label': 'PCA', 'value': 'pca'}],
                     placeholder='Select a dimensionality reduction technique',
                     value='spectral'
                 )], style={'width': '20%'}
@@ -395,10 +405,10 @@ def update_image_repTeam(value):
 
 @app.callback(
     Output('teamRec-player-dropdown', 'children'),
-    Input('teamRec-starting5-dropdown', 'value'))
-def selected_player(value):
+    [Input('teamRec-starting5-dropdown', 'value'), Input('recommendation-type', 'value')])
+def selected_player(rep_player, rec_type):
     data_emb, emb, _, _, _ = recommmendation_engine.embeddings('umap')
-    sample_recommendation = recommmendation_engine.RecommendationEngine(data_emb, value, emb, 'Similar')
+    sample_recommendation = recommmendation_engine.RecommendationEngine(data_emb, rep_player, emb, rec_type) # 'Similar'
     r = sample_recommendation.recommend()
     return r
 
@@ -425,6 +435,7 @@ def update_output(value):
 if __name__ == '__main__':
     app.run_server(debug=True)
 
+# fit/similar dropdown -> branch
 
 # Recommendation Tab:
 # which embedding, fit/similar, outputs
