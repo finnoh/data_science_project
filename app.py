@@ -365,11 +365,9 @@ def get_emb(value):
 #    player_stats.positions = positions
 #    player_stats.head()
     fig = px.scatter(players_stats, x="embedding_1", y="embedding_2", color = positions, hover_name = data_names, 
-                    hover_data={'embedding_1':False, # remove species from hover data
-                                'embedding_2':False, # customize hover for column of y attribute,
-                              #  'positions': False,
-                               # 'Name': data_names,
-                                'Position': positions, # add other column, default formatting
+                    hover_data={'embedding_1':False, 
+                                'embedding_2':False, 
+                                'Position': positions,
                                 'Age': player_stats['PLAYER_AGE'],
                                 'Points': player_stats['GP'],
                                 '3P PCT': (':.3f', player_stats['FG3_PCT']), 
@@ -379,9 +377,7 @@ def get_emb(value):
                     labels={"embedding_1": "Embedding Dimension 1", "embedding_2": "Embedding Dimension 2"}, title=f"{name_emb[str(value)]} representation of NBA players")
     fig.update_layout(transition_duration=500, template='simple_white')
     return fig
-# (['PLAYER_AGE', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A',
-       #'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB', 'AST', 'STL',
-       #'BLK', 'TOV', 'PF', 'PTS'],
+
 
 @app.callback(
     Output('teamRec-starting5-dropdown', 'options'),
@@ -435,41 +431,3 @@ def update_output(value):
 if __name__ == '__main__':
     app.run_server(debug=True)
 
-# fit/similar dropdown -> branch
-
-# Recommendation Tab:
-# which embedding, fit/similar, outputs
-# only umap works in recommendation engine
-# add correct output (incl. graphs) from recommendation
-# add dropdown for similar or fit
-# option: age included, age excluded for best fit
-# which player fit best to strategy
-# cut off for minutes played; player obere bubble?
-# age rausnehmen?
-# box für user mit attributen zur auswahl
-
-# Finn: 
-# 5 wichtigsten attribute pro spieler angeben -> wie angeben @ Finn?
-# performance plot bei steph curry?
-# finns parameter einbauen
-
-# Präsi:
-# story kommunizieren, data management (wie daten, wie transformiert?), prozess dokumentieren, auch methodik zeigen, was sind unsere Fragen? -> wie passen Modelle zusammen
-# wird nicht benotet
-# columns for projection in präsi
-# skizze for ideal präsi
-# max. 15 min präsi
-
-# Done:
-# add Spinner (via output von model?) https://www.youtube.com/watch?v=t1bKNj021do
-# performance & hot zone, logo player -> player
-# add picture of player below selection
-# add "loading" button? https://stackoverflow.com/questions/54439548/display-loading-symbol-while-waiting-for-a-result-with-plot-ly-dash
-# https://community.plotly.com/t/updating-a-dropdown-menus-contents-dynamically/4920
-# https://dash-bootstrap-components.opensource.faculty.ai/docs/components/
-# NBA: difference mit weights scales
-
-# additional scraping of: https://www.basketball-reference.com/
-# steph curry -> louis williams?
-# # IDs in file als string importen
-# dim reduction (search for player)
