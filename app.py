@@ -170,8 +170,12 @@ app.layout = html.Div(children=[
         ]
                 ),
 
-        dcc.Tab(label='Team', value='tab-5', children=[jumbotron]
-                )])
+        dcc.Tab(label='Team', value='tab-5', children=[jumbotron,
+                                                       dbc.Container([
+                                                           dcc.Graph(id='teamselect-capspace-graph')
+                                                       ])
+                                                       ])
+                ])
 ])
 
 
@@ -182,7 +186,6 @@ app.layout = html.Div(children=[
     Input('playerselect-dropdown', 'value'))
 def update_output(value):
     return f'Player has the ID: {value}'
-
 
 @app.callback(
     [Output('teamselect-output-container', 'children'),
@@ -319,6 +322,12 @@ def selected_player(value):
     sample_recommendation = recommmendation_engine.RecommendationEngine(data_emb, value, emb, 'Similar')
     r = sample_recommendation.recommend()
     return f"{r} was returned"
+
+@app.callback(
+    Output('teamselect-capspace-graph', 'figure'),
+    Input('teamselect-dropdown', 'value'))
+def update_output(value):
+    return recommmendation_engine.visualize_capspace_team_plotly(value)
 
 if __name__ == '__main__':
     app.run_server(debug=True)
