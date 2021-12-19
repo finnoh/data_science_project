@@ -30,23 +30,26 @@ app.layout = html.Div(children=[
         dcc.Tab(label='Player Bio', value='tab-1', children=[
             html.H1(children='NBA GM'),
             dbc.Row([dbc.Col(html.Div([html.Div([html.Img(id='playerselect-image')])], style={'width': '49%'})),
-                    dbc.Col(html.Div([html.Div([html.Img(id='teamSel-image')])], style={'width': '49%'}))
-                    ]
-                ),
+
+                     dbc.Col(html.Div([html.Div([html.Img(id='teamSel-image')])], style={'width': '49%'}))
+                     ]
+                    ),
             html.Div([dcc.Dropdown(
-                    id='playerselect-dropdown',
-                    options=[{'label': player, 'value': player_selector.iloc[i, 1]} for i, player in
-                             enumerate(player_selector.label.unique())],
-                    placeholder='Select a Player',
-                    value=203500
-                )], style={'width': '20%'}
+                id='playerselect-dropdown',
+                options=[{'label': player, 'value': player_selector.iloc[i, 1]} for i, player in
+                         enumerate(player_selector.label.unique())],
+                placeholder='Select a Player',
+                value=203500
+            )], style={'width': '20%'}
             ),
             html.Div(id='playerselect-output-container'),
-            html.Div(children=[html.Div(id='playerselect-output-container-wiki')], style={'width': '49%', 'display': 'inline-block'}),
+            html.Div(children=[html.Div(id='playerselect-output-container-wiki')],
+                     style={'width': '49%', 'display': 'inline-block'}),
             dbc.Container([dash_table.DataTable(id='playerselect-table'),
-                            dbc.Alert(id='tbl_out')]),
-                            dbc.Container([dcc.Graph(id='playerselect-graph1')]
-            ),
+                           dbc.Alert(id='tbl_out')]),
+            dbc.Container([dcc.Graph(id='playerselect-graph1')]
+                          ),
+
             dbc.Container([
                 dcc.Graph(id='hotzone-graph')
             ])
@@ -57,15 +60,19 @@ app.layout = html.Div(children=[
             html.H1(children='Recommendation Engine for NBA players'),
             html.Div([html.Div(
                 [html.Img(id='teamRep-image')]
-            )], style={'height':'5%', 'width':'5%'}),
+
+            )], style={'height': '5%', 'width': '5%'}),
+
             html.Div(
                 [dcc.Dropdown(
                     id='teamRec-select-dropdown',
                     options=[{'label': list(team_data['full_name'])[i], 'value': abb} for i, abb in enumerate(team_data['abbreviation'])],
                     placeholder='Select a Team',
                     value='LAL'
-                )], style={'width': '20%'}            
-                ),
+
+                )], style={'width': '20%'}
+            ),
+
             html.Div([html.Div(
                 [html.Img(id='playerRep-image')]
             )], style={'width': '49%'}),
@@ -74,7 +81,16 @@ app.layout = html.Div(children=[
                     id='teamRec-starting5-dropdown',
                     placeholder='Select a player',
                     value='LeBron James'
-                )], style={'width': '20%'}            
+
+                )], style={'width': '20%'}
+            ),
+            dcc.Loading(children=[html.Div(id='teamRec-player-dropdown')], fullscreen=False, type='dot',
+                        color="#119DFF"),
+            html.Div([html.Div(
+                [html.Img(id='playerRec-image')]
+            )], style={'width': '49%'})
+        ]
+
                 ),
             dcc.Loading(children = [html.Div(id='teamRec-player-dropdown')], fullscreen=False, type='dot', color="#119DFF"),
             html.Div([html.Div(
@@ -84,7 +100,9 @@ app.layout = html.Div(children=[
         ),
 
         dcc.Tab(label='Dimensionality Reduction', value='tab-4', children=[
-            html.H1(children='Projections of active NBA players into 2D'), 
+
+            html.H1(children='Projections of active NBA players into 2D'),
+
             html.Div(
                 [dcc.Dropdown(
                     id='dimreduction-dropdown',
@@ -97,7 +115,10 @@ app.layout = html.Div(children=[
                 )], style={'width': '20%'}
             ),
             dbc.Container([
-                            dcc.Loading(children = [dcc.Graph(id='dimreduction-graph1')], fullscreen=False, type='dot', color="#119DFF")
+
+                dcc.Loading(children=[dcc.Graph(id='dimreduction-graph1')], fullscreen=False, type='dot',
+                            color="#119DFF")
+
             ])
             ]
         )
