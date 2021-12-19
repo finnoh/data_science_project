@@ -190,9 +190,9 @@ def visualize_capspace_team_plotly(team_abb):
 
     df_plot = pd.DataFrame(data={'Season': ['2021/22', '2022/23', '2023/24', '2024/25'], 'Cap Space': list(y_values)})
 
-    fig = px.line(df_plot, x="Season", y="Cap Space", title=f' Cap Space Development of {team_abb}')
+    fig = px.line(df_plot, x="Season", y="Cap Space", title=f' Cap Space Development')
 
-    return fig
+    return fig.update_layout(template="simple_white")
 
 
 def luxury_tax(cap_space):

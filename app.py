@@ -103,9 +103,9 @@ jumbotron = dbc.Row(
 # APP LAYOUT
 
 app.layout = html.Div(children=[
-    dcc.Tabs(id='tabs-example', value='tab-1', children=[
+    dcc.Tabs(id='tabs-example', value='tab-1', vertical=False, children=[
         dcc.Tab(label='Player Bio', value='tab-1', children=[
-            html.H1(children='NBA GM'),
+            html.H2(children='Player', className="display-3"),
             html.Div([html.Div(
                 [html.Img(id='playerselect-image')]
             )], style={'width': '49%'}
@@ -133,7 +133,7 @@ app.layout = html.Div(children=[
                 dcc.Graph(id='playerselect-graph1')
             ])]),
         dcc.Tab(label='Recommendation engine', value='tab-3', children=[
-            html.H1(children='Recommendation Engine for NBA players'),
+            html.H2(children='Recommendation Engine for NBA players', className="display-3"),
             html.Div(
                 [dcc.Dropdown(
                     id='teamRec-select-dropdown',
@@ -155,7 +155,7 @@ app.layout = html.Div(children=[
                 ),
 
         dcc.Tab(label='Dimensionality Reduction', value='tab-4', children=[
-            html.H1(children='Projections of active NBA players into 2D'),
+            html.H2(children='Projections of active NBA players into 2D', className="display-3"),
             html.Div(
                 [dcc.Dropdown(
                     id='dimreduction-dropdown',
@@ -175,7 +175,10 @@ app.layout = html.Div(children=[
 
         dcc.Tab(label='Team', value='tab-5', children=[jumbotron
                                                        ])
-    ])
+    ], colors={
+        "border": "white",
+        "primary": "#17408b",
+        "background": "white"})
 ])
 
 
