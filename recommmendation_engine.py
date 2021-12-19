@@ -3,6 +3,8 @@ import numpy as np
 import seaborn as sns
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objs as go
 from sklearn.neighbors import NearestNeighbors
 import requests
 from bs4 import BeautifulSoup
@@ -176,6 +178,21 @@ def visualize_capspace_team(team_abb):
     ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%0.0f $')) # can be improved
     plt.show()
     return capspace_team
+
+
+def visualize_capspace_team_plotly(team_abb):
+    if team_abb in list(teams_salaries['Abb']):
+        capspace_team = teams_salaries[teams_salaries['Abb'] == team_abb].reset_index(drop=True)
+        y_values = capspace_team.iloc[0, 3:]
+    else:
+        print('Please input a correct abbreviation of an NBA team')
+        return 0
+
+    df_plot = pd.DataFrame(data={'Season': ['2021/22', '2022/23', '2023/24', '2024/25'], 'Cap Space': list(y_values)})
+
+    fig = px.line(df_plot, x="Season", y="Cap Space", title=f' Cap Space Development')
+
+    return fig.update_layout(template="simple_white")
 
 
 def luxury_tax(cap_space):
