@@ -76,7 +76,7 @@ starplayer = dbc.Alert(
 )
 
 right_part = dbc.Col([html.Div(
-    [html.Img(id='teamselect-mvp-image', style={'margin': 'auto', 'width': '80%', 'display': 'inline-block'})]),
+    [html.Img(id='teamselect-mvp-image', style={'margin': 'auto', 'width': '50%', 'display': 'inline-block'})]),
     starplayer],
     md=4)
 
@@ -90,7 +90,10 @@ left_jumbotron = dbc.Col([dbc.Row([col_teamname, col_logo], className="align-ite
                                        enumerate(
                                            team_selector.label.unique())],
                               value='ATL'
-                          )], md=8, className="h-100 p-5 bg-light border rounded-3")
+                          ), html.Hr(className="my-2"),
+                          dbc.Container([
+                              dcc.Graph(id='teamselect-capspace-graph')
+                          ])], md=8, className="h-100 p-5 bg-light border rounded-3")
 
 jumbotron = dbc.Row(
     [left_jumbotron, right_part],
@@ -138,7 +141,7 @@ app.layout = html.Div(children=[
                              enumerate(team_data['abbreviation'])],
                     placeholder='Select a Team',
                     value='LAL'
-                )], style={'width': '20%'}
+                )], style={'width': '80%'}
             ),
             html.Div(
                 [dcc.Dropdown(
@@ -170,12 +173,9 @@ app.layout = html.Div(children=[
         ]
                 ),
 
-        dcc.Tab(label='Team', value='tab-5', children=[jumbotron,
-                                                       dbc.Container([
-                                                           dcc.Graph(id='teamselect-capspace-graph')
+        dcc.Tab(label='Team', value='tab-5', children=[jumbotron
                                                        ])
-                                                       ])
-                ])
+    ])
 ])
 
 
@@ -186,6 +186,7 @@ app.layout = html.Div(children=[
     Input('playerselect-dropdown', 'value'))
 def update_output(value):
     return f'Player has the ID: {value}'
+
 
 @app.callback(
     [Output('teamselect-output-container', 'children'),
@@ -207,6 +208,7 @@ def update_output(value):
     descr = _mvp_descr_builder(mvp_name=mvp_name, mvp_position=mvp_pos, mvp_data=mvp_data)
 
     return url_image, descr, mvp_name
+
 
 @app.callback(
     Output('teamselect-link-button', 'children'),
@@ -285,6 +287,7 @@ def toggle_offcanvas(n1, is_open):
         return not is_open
     return is_open
 
+
 @app.callback(
     Output('playerselect-output-container-wiki', 'children'),
     [Input('playerselect-dropdown', 'value')])
@@ -298,14 +301,16 @@ def _player_wiki_summary(value):
     else:
         return f"No Wikipedia page found for {str(name)}"
 
+
 @app.callback(
     Output('dimreduction-graph1', 'figure'),
     [Input('dimreduction-dropdown', 'value')])
 def get_emb(value):
     players_stats, _, positions, data_names = recommmendation_engine.embeddings(value)
-    fig = px.scatter(players_stats, x="embedding_1", y="embedding_2", color = positions, hover_name = data_names)
+    fig = px.scatter(players_stats, x="embedding_1", y="embedding_2", color=positions, hover_name=data_names)
     fig.update_layout(transition_duration=500)
     return fig
+
 
 @app.callback(
     Output('teamRec-starting5-dropdown', 'options'),
@@ -313,6 +318,7 @@ def get_emb(value):
 def get_starting_five(value):
     players_team = recommmendation_engine.starting_five(value, names=True)
     return [{'label': i, 'value': i} for i in players_team.keys()]
+
 
 @app.callback(
     Output('teamRec-player-dropdown', 'children'),
@@ -323,11 +329,13 @@ def selected_player(value):
     r = sample_recommendation.recommend()
     return f"{r} was returned"
 
+
 @app.callback(
     Output('teamselect-capspace-graph', 'figure'),
     Input('teamselect-dropdown', 'value'))
 def update_output(value):
     return recommmendation_engine.visualize_capspace_team_plotly(value)
+
 
 if __name__ == '__main__':
     app.run_server(debug=True)
