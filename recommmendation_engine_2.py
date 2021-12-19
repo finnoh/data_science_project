@@ -3,8 +3,6 @@ import numpy as np
 import seaborn as sns
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-import plotly.express as px
-import plotly.graph_objs as go
 from sklearn.neighbors import NearestNeighbors
 import requests
 from bs4 import BeautifulSoup
@@ -95,10 +93,14 @@ def combine_seasons(players_stats, player_id, weights):
     dict_final = dict(df_final.iloc[0])
     return dict_final
 
-def aggregate_data(players_stats, w, norm = True):
+def aggregate_data(players_stats, w, cols = 0, norm = True):
     players_stats = players_stats[(players_stats['SEASON_ID'] == '2020-21') | 
                                   (players_stats['SEASON_ID'] == '2019-20') | 
                                   (players_stats['SEASON_ID'] == '2018-19')].reset_index().drop(columns=['index'])
+
+    if cols != 0:
+        players_stats
+
 
     col_div = ['MIN', 'FGM', 'FGA', 'FG3M', 'FG3A', 'FTM', 'FTA', 'OREB', 'DREB', 'REB', 'AST', 'STL',
                 'BLK', 'TOV', 'PF', 'PTS']
@@ -117,7 +119,7 @@ def aggregate_data(players_stats, w, norm = True):
     player_stats_agg_notTransformed = [x for x in player_stats_agg_notTransformed if x != 'NA']
     player_stats_agg_notTransformed = pd.DataFrame(player_stats_agg_notTransformed).sort_values(by=['PLAYER_ID']).reset_index(drop = True)
     
-    players_stats_agg = copy.deepcopy(player_stats_agg_notTransformed) # move in front
+    players_stats_agg = copy.deepcopy(player_stats_agg_notTransformed)
 
     if norm == True:
         scaler = StandardScaler()
@@ -127,7 +129,7 @@ def aggregate_data(players_stats, w, norm = True):
     return players_stats_agg, player_stats_agg_notTransformed
 
 
-players_stats_agg, player_stats_agg_notTransformed = aggregate_data(players_stats, [7/10, 2/10, 1/10])
+#players_stats_agg, player_stats_agg_notTransformed = aggregate_data(players_stats, [7/10, 2/10, 1/10])
 
 
 ## Define help functions
@@ -180,21 +182,6 @@ def visualize_capspace_team(team_abb):
     ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%0.0f $')) # can be improved
     plt.show()
     return capspace_team
-
-
-def visualize_capspace_team_plotly(team_abb):
-    if team_abb in list(teams_salaries['Abb']):
-        capspace_team = teams_salaries[teams_salaries['Abb'] == team_abb].reset_index(drop=True)
-        y_values = capspace_team.iloc[0, 3:]
-    else:
-        print('Please input a correct abbreviation of an NBA team')
-        return 0
-
-    df_plot = pd.DataFrame(data={'Season': ['2021/22', '2022/23', '2023/24', '2024/25'], 'Cap Space': list(y_values)})
-
-    fig = px.line(df_plot, x="Season", y="Cap Space", title=f' Cap Space Development')
-
-    return fig.update_layout(template="simple_white")
 
 
 def luxury_tax(cap_space):
@@ -284,13 +271,13 @@ def starting_five(team_abb: str, names = False):
 
 ## Dimensionality reduction
 
-def embeddings(option: str):
+def embeddings(option: str, stats_agg, stats_agg_notTransformed):
     data_names = list(players_data['player_names'])
-    players_stats = copy.deepcopy(players_stats_agg.iloc[:,:5])
+    players_stats = copy.deepcopy(stats_agg.iloc[:,:5])
 
     if option == "spectral":
         from sklearn.manifold import SpectralEmbedding
-        embedding = SpectralEmbedding(random_state = 42, n_neighbors = players_stats_agg.shape[0]//75)
+        embedding = SpectralEmbedding(random_state = 42, n_neighbors = stats_agg.shape[0]//75)
         #stats_transformed = embedding.fit_transform(players_stats_agg.iloc[:,5:])
 
     elif option == 'tsne':
@@ -310,12 +297,12 @@ def embeddings(option: str):
     else:
         print('Please enter a valid embedding.')
 
-    stats_transformed = embedding.fit_transform(players_stats_agg.iloc[:,5:])
+    stats_transformed = embedding.fit_transform(stats_agg.iloc[:,5:])
 
     players_stats["embedding_1"] = stats_transformed[:,0]
     players_stats["embedding_2"] = stats_transformed[:,1]
     
-    return players_stats, embedding, players_data['position'], data_names, player_stats_agg_notTransformed.iloc[:,5:]
+    return players_stats, embedding, players_data['position'], data_names, stats_agg_notTransformed.iloc[:,5:]
 
     fig, ax = plt.subplots()
     sns.scatterplot(players_stats_spectral["embedding_1"], players_stats_spectral["embedding_2"], hue=players_data['position'], legend='full')
@@ -334,7 +321,7 @@ def embeddings(option: str):
 #  Class definition
 
 class RecommendationEngine:
-    def __init__(self, data, replacing_player, transformer, option):
+    def __init__(self, data, replacing_player, transformer, option, stats_agg):
         self.stats = data
         self.option = option
         self.player_name = replacing_player
@@ -345,6 +332,7 @@ class RecommendationEngine:
             print("Please provide the full name of a valid active NBA player.")
         self.position = adj_position(commonplayerinfo.CommonPlayerInfo(self.player_id).get_data_frames()[0]['POSITION'][0])
         self.team = self.team_lastSeason()
+        self.stats_agg = stats_agg
             
     def recommend(self):   
         #ids_samePosition = list(players_data[players_data["position"] == self.position]['id'])
@@ -385,7 +373,7 @@ class RecommendationEngine:
                 start_five_team = list(starting_five(self.team, names = False).keys())
                 start_five_team.remove(self.player_id)
                 
-                data_team = pd.concat([players_stats_agg[players_stats_agg['PLAYER_ID'] == start_five_team[i]] for i in range(len(start_five_team))])
+                data_team = pd.concat([self.stats_agg[self.stats_agg['PLAYER_ID'] == start_five_team[i]] for i in range(len(start_five_team))])
                 data_team = np.abs(np.array(data_team.iloc[:,5:].sum(axis=0)))
                 diff = np.abs(maxs - data_team)
                 dist_attributes = self.softmax(diff)
@@ -569,11 +557,11 @@ class RecommendationEngine:
     
     
     def get_maxs_teams(self):
-        performance_teams = np.zeros((teams_data.shape[0], len(players_stats_agg.columns)-5))
+        performance_teams = np.zeros((teams_data.shape[0], len(self.stats_agg.columns)-5))
         for i in range(teams_data.shape[0]):
             team_abb = list(teams_data['abbreviation'])[i]
             start_five_team = list(starting_five(team_abb, names = False).keys())
-            data_team = pd.concat([players_stats_agg[players_stats_agg['PLAYER_ID'] == start_five_team[i]] for i in range(len(start_five_team))])
+            data_team = pd.concat([self.stats_agg[self.stats_agg['PLAYER_ID'] == start_five_team[i]] for i in range(len(start_five_team))])
             performance_teams[i, :] = np.array(data_team.iloc[:,5:].sum(axis=0))
 
         maxs = np.amax(performance_teams, axis=0) 
@@ -595,6 +583,13 @@ class RecommendationEngine:
 # Exemplary execution
 
 if __name__ == "__main__":
-    data_emb, emb, _, _, _ = embeddings('umap')
-    sample_recommendation = RecommendationEngine(data_emb, "Draymond Green", emb, 'Fit')
+    stats_agg, stats_agg_notTransformed = aggregate_data(players_stats, [7/10, 2/10, 1/10])
+    data_emb, emb, _, _, _ = embeddings('umap', stats_agg, stats_agg_notTransformed)
+    sample_recommendation = RecommendationEngine(data_emb, "Draymond Green", emb, 'Fit', stats_agg)
     sample_recommendation.recommend()
+
+
+#Index(['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION',
+#       'PLAYER_AGE', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A',
+#       'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB', 'AST', 'STL',
+#       'BLK', 'TOV', 'PF', 'PTS'],
