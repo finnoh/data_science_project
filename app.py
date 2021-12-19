@@ -36,7 +36,7 @@ import recommmendation_engine
 
 import dash_bootstrap_components as dbc
 
-app = dash.Dash(__name__, title="NBA GM")
+app = dash.Dash(__name__, title="NBA GM", external_stylesheets=[dbc.themes.LUX])
 
 # assume you have a "long-form" data frame
 # see https://plotly.com/python/px-arguments/ for more options
@@ -49,12 +49,14 @@ team_data = recommmendation_engine.get_teams_data()
 
 
 # APP ELEMENTS
+
 offcanvas = html.Div(
     [
         dbc.Button("Further Team Information", id="teamselect-open-offcanvas", n_clicks=0, color='light'),
         dbc.Offcanvas([html.Div(
             html.P(id='teamselect-output-wiki'
                    )),
+
             dbc.Button(id="teamselect-link-button",
                        target="_blank",
                        color="info", external_link=True)],
@@ -66,12 +68,15 @@ offcanvas = html.Div(
         ),
     ]
 )
+
 col_teamname = dbc.Col(html.Div(
     [html.H2(id='teamselect-output-container',
              className="display-3", style={'margin': 'auto', 'width': '100%', 'display': 'inline-block'}), offcanvas]),
     md=10)
+
 col_logo = dbc.Col(html.Div(
     [html.Img(id='teamselect-image', style={'margin': 'auto', 'width': '100%', 'display': 'inline-block'})]), md=2)
+
 starplayer = dbc.Alert(
     [
         html.H4("Starplayer", className="alert-heading"),
@@ -83,10 +88,12 @@ starplayer = dbc.Alert(
         ),
     ]
 )
+
 right_part = dbc.Col([html.Div(
     [html.Img(id='teamselect-mvp-image', style={'margin': 'auto', 'width': '50%', 'display': 'inline-block'})]),
     starplayer],
     md=4)
+
 left_jumbotron = dbc.Col([dbc.Row([col_teamname, col_logo], className="align-items-md-stretch"),
                           html.Hr(className="my-2"),
                           dcc.Dropdown(
@@ -101,6 +108,7 @@ left_jumbotron = dbc.Col([dbc.Row([col_teamname, col_logo], className="align-ite
                           dbc.Container([
                               dcc.Graph(id='teamselect-capspace-graph')
                           ])], md=8, className="h-100 p-5 bg-light border rounded-3")
+
 jumbotron = dbc.Row(
     [left_jumbotron, right_part],
     className="align-items-md-stretch",
@@ -197,7 +205,8 @@ app.layout = html.Div(children=[
 
             ]
         ),
-        dcc.Tab(label='Team', value='tab-5', children=[jumbotron])
+        dcc.Tab(label='Team', value='tab-5', children=[jumbotron
+                                                       ])
         ], colors={
         "border": "white",
         "primary": "#17408b",
