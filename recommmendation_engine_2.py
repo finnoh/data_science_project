@@ -93,13 +93,13 @@ def combine_seasons(players_stats, player_id, weights):
     dict_final = dict(df_final.iloc[0])
     return dict_final
 
-def aggregate_data(players_stats, w, cols = 0, norm = True):
+def aggregate_data(players_stats, w, cols, norm = True):
     players_stats = players_stats[(players_stats['SEASON_ID'] == '2020-21') | 
                                   (players_stats['SEASON_ID'] == '2019-20') | 
                                   (players_stats['SEASON_ID'] == '2018-19')].reset_index().drop(columns=['index'])
 
-    if cols != 0:
-        players_stats
+    if len(w) > 0:
+        players_stats = players_stats[cols]
 
 
     col_div = ['MIN', 'FGM', 'FGA', 'FG3M', 'FG3A', 'FTM', 'FTA', 'OREB', 'DREB', 'REB', 'AST', 'STL',
