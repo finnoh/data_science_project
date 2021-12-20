@@ -129,9 +129,9 @@ player_acc = html.Div(
 )
 
 left_player = dbc.Col([html.Div(
-    [html.Div([html.Img(id='playerselect-image', style={'width': '100%'})], style={'display': 'inline-block'}),
-     html.Div([html.Img(id='teamSel-image', style={'width': '33%'})], style={'display': 'inline-block'})],
-    style={'width': '100%', 'display': 'inline-block'}),
+    [html.Div([html.Img(id='playerselect-image', style={'width': '50%'})], style={'display': 'inline-block'}),
+     html.Div([html.Img(id='teamSel-image', style={'width': '25%'})], style={'display': 'inline-block'})],
+    style={'width': '200%', 'display': 'inline-block'}),
     html.Div([dcc.Dropdown(
         id='playerselect-dropdown',
         options=[{'label': player, 'value': player_selector.iloc[i, 1]} for i, player in
@@ -166,7 +166,7 @@ top_card_rec = dbc.Card(
             ),
         ),
     ],
-    style={"width": "25rem", "aligin": "auto"}
+    style={"width": "15rem", "align": "auto"}
 )
 
 bottom_card_rec = dbc.Card(
@@ -174,7 +174,7 @@ bottom_card_rec = dbc.Card(
         dbc.CardImg(id='playerRec-image', top=True),
         dbc.CardBody(html.H4(id='teamRec-player-dropdown', className="card-text"))
     ],
-    style={"width": "25rem", "aligin": "auto"}
+    style={"width": "15rem", "align": "auto"}
 )
 
 team_card_rec = dbc.Card(
@@ -190,7 +190,7 @@ team_card_rec = dbc.Card(
 
             )])
     ],
-    style={"width": "25rem", "aligin": "auto"})
+    style={"width": "20rem", "align": "auto"})
 
 method_select_rec = html.Div([
     dbc.Label("Method"),
@@ -203,10 +203,10 @@ method_select_rec = html.Div([
 ])
 
 cards_rec = dbc.Row(
-    [dbc.Col(team_card_rec, width="auto"),
+    [method_select_rec,
+     dbc.Col(team_card_rec, width="auto"),
      dbc.Col(top_card_rec, width="auto"),
-     dbc.Col(dcc.Loading([bottom_card_rec], fullscreen=False, type='dot', color="#119DFF"), width="auto"),
-     method_select_rec
+     dbc.Col(dcc.Loading([bottom_card_rec], fullscreen=False, type='dot', color="#119DFF"), width="auto")
      ], className="align-items-md-stretch"
 )
 
@@ -219,29 +219,27 @@ dim_red = dbc.Col([html.Div(
                  {'label': 'PCA', 'value': 'pca'}],
         placeholder='Select a dimensionality reduction technique',
         value='spectral'
-    )], style={'width': '20%'}
+    )], style={'width': '60%'}
 ),
     dbc.Container([
         dcc.Loading(children=[dcc.Graph(id='dimreduction-graph1')], fullscreen=False, type='dot',
                     color="#119DFF")
-    ])], md=6)
+    ])], md=12)
 
 
 # APP LAYOUT
 app.layout = html.Div(children=[
     dcc.Tabs(id='tabs-example', value='tab-1', children=[
-        dcc.Tab(label='Player Bio', value='tab-1', children=[
+        dcc.Tab(label='Player', value='tab-1', children=[
             html.H2(children='Player', className="display-3"),
             jumbotron_player
         ]),
-
-        dcc.Tab(label='Recommendation engine', value='tab-3', children=[
-            html.H2(children='Recommendation Engine for NBA players', className="display-3"),
-            dbc.Row([dbc.Col(cards_rec, md=6), dim_red], className="align-items-md-stretch")
-        ]),
-
         dcc.Tab(label='Team', value='tab-5', children=[jumbotron
-                                                       ])
+                                                       ]),
+        dcc.Tab(label='Recommendation', value='tab-3', children=[
+            html.H2(children='Trade Assist', className="display-3"),
+            html.Div([cards_rec, dim_red])
+        ])
     ], colors={
         "border": "white",
         "primary": "#17408b",
@@ -252,7 +250,7 @@ app.layout = html.Div(children=[
 # APP CALLBACKS
 
 @app.callback(
-    Output('playerselect-output-container', 'children'),
+    [Output('playerselect-output-container', 'children')],
     Input('playerselect-dropdown', 'value'))
 def update_output(value):
     return f'Player has the ID: {value}'
@@ -312,9 +310,11 @@ def update_image_selTeam(value):
 def update_player(value):
     # make api call
     df = get_clean_player_data(player_id=value)
+    cols = ['SEASON_ID', 'PLAYER_AGE', 'GP', 'MIN', 'PTS', 'AST', 'REB', 'BLK']
+    df = df[cols]
 
     # get objects
-    columns = [{"name": i, "id": i} for i in df.columns]
+    columns = [{"name": i, "id": i} for i in cols]
     data = df.to_dict('records')
 
     # get figure
@@ -389,7 +389,7 @@ def hotzone_graph(value):
     # fig = px.density_heatmap(shots, x="LOC_X", y="LOC_Y", z="SHOT_MADE_FLAG", histfunc="avg", width=1200, height=1000)
 
     # fig = fig.update_layout(template="simple_white")
-    fig = draw_plotly_court(fig=fig, fig_width=900)
+    fig = draw_plotly_court(fig=fig, fig_width=600)
     # fig.update(layout_showlegend=False)
     return fig
 
