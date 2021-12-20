@@ -542,3 +542,4 @@ if __name__ == '__main__':
 # # IDs in file als string importen
 # dim reduction (search for player)
 
+# Add number of non-zero elements in cap salary plot
