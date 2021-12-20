@@ -89,6 +89,16 @@ def get_clean_player_data(player_id: str):
 
     return df
 
+def get_player_score(player_id: str):
+    """
+
+    :param player_id:
+    :return:
+    """
+    data = pd.read_csv("full_player_rating.csv")
+    data_player = data[data['PLAYER_ID'] == player_id]
+    return np.round(data_player['SCORE'].values[0], 2)
+
 def get_player_image(player_id):
     """ Get a players image based on his id
 
