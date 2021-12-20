@@ -72,10 +72,10 @@ offcanvas = html.Div(
 col_teamname = dbc.Col(html.Div(
     [html.H2(id='teamselect-output-container',
              className="display-3", style={'margin': 'auto', 'width': '100%', 'display': 'inline-block'}), offcanvas]),
-    md=10)
+    md=9)
 
 col_logo = dbc.Col(html.Div(
-    [html.Img(id='teamselect-image', style={'margin': 'auto', 'width': '100%', 'display': 'inline-block'})]), md=2)
+    [html.Img(id='teamselect-image', style={'margin': 'auto', 'width': '120%', 'display': 'inline-block'})]), md=3)
 
 starplayer = dbc.Alert(
     [
