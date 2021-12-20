@@ -31,7 +31,7 @@ from dash import dcc, html
 from dash import dash_table
 from dash.dependencies import Input, Output
 import plotly.express as px
-from src.get_data import get_clean_player_data
+from src.get_data import get_clean_player_data, get_player_score
 from src.utils_dash import _player_selector
 import recommmendation_engine
 
@@ -129,8 +129,8 @@ player_acc = html.Div(
 )
 
 left_player = dbc.Col([html.Div(
-    [html.Div([html.Img(id='playerselect-image', style={'width': '50%'})], style={'display': 'inline-block'}),
-     html.Div([html.Img(id='teamSel-image', style={'width': '25%'})], style={'display': 'inline-block'})],
+    [html.Div([html.Img(id='playerselect-image', style={'width': '100%'})], style={'display': 'inline-block'}),
+     html.Div([html.Img(id='teamSel-image', style={'width': '50%'})], style={'display': 'inline-block'})],
     style={'width': '200%', 'display': 'inline-block'}),
     html.Div([dcc.Dropdown(
         id='playerselect-dropdown',
@@ -140,6 +140,7 @@ left_player = dbc.Col([html.Div(
         value=203500
     )], style={'width': '33%'}),
     html.Div(id='playerselect-output-container'),
+    html.Div(id='playerselect-score'),
     player_acc
 ], md=6)
 
@@ -253,7 +254,7 @@ app.layout = html.Div(children=[
     [Output('playerselect-output-container', 'children')],
     Input('playerselect-dropdown', 'value'))
 def update_output(value):
-    return f'Player has the ID: {value}'
+    return [f'Player has the ID: {value}']
 
 
 @app.callback(
@@ -304,7 +305,8 @@ def update_image_selTeam(value):
 @app.callback(
     [Output('playerselect-table', 'data'),
      Output('playerselect-table', 'columns'),
-     Output('playerselect-graph1', 'figure')],
+     Output('playerselect-graph1', 'figure'),
+     Output('playerselect-score', 'children')],
 
     [Input('playerselect-dropdown', 'value')])
 def update_player(value):
@@ -312,6 +314,8 @@ def update_player(value):
     df = get_clean_player_data(player_id=value)
     cols = ['SEASON_ID', 'PLAYER_AGE', 'GP', 'MIN', 'PTS', 'AST', 'REB', 'BLK']
     df = df[cols]
+
+    player_score = get_player_score(player_id=value)
 
     # get objects
     columns = [{"name": i, "id": i} for i in cols]
@@ -321,7 +325,7 @@ def update_player(value):
     fig = px.line(df, x="SEASON_ID", y="PTS")
     fig.update_layout(transition_duration=500, template="simple_white")
 
-    return data, columns, fig
+    return data, columns, fig, [f'RAPM score of {player_score}']
 
 
 @app.callback(
@@ -471,6 +475,7 @@ def update_image_recPlayer(children):
     Input('teamselect-dropdown', 'value'))
 def update_output(value):
     return recommmendation_engine.visualize_capspace_team_plotly(value)
+
 
 
 if __name__ == '__main__':
