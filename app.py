@@ -541,5 +541,6 @@ if __name__ == '__main__':
 # steph curry -> louis williams?
 # # IDs in file als string importen
 # dim reduction (search for player)
+# have to add * weights[0] etc. in combine_seasons() instead of hard-coded values
 
 # Add number of non-zero elements in cap salary plot

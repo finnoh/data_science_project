@@ -61,7 +61,7 @@ def combine_seasons(players_stats, player_id, weights):
     elif season_20.shape[0] > 1:
         season_20 = season_20[season_20['TEAM_ABBREVIATION'] == 'TOT'].iloc[:,6:] * weights[0]
     else:
-        season_20 = season_20.iloc[:,6:] * 1/2
+        season_20 = season_20.iloc[:,6:] * weights[0] #* 1/2
   
     season_19 = df[df['SEASON_ID'] == '2019-20']
     if season_19.shape[0] == 0:
@@ -69,7 +69,7 @@ def combine_seasons(players_stats, player_id, weights):
     elif season_19.shape[0] > 1:
         season_19 = season_19[season_19['TEAM_ABBREVIATION'] == 'TOT'].iloc[:,6:] * weights[1]
     else:
-        season_19 = season_19.iloc[:,6:] * 2/6
+        season_19 = season_19.iloc[:,6:] * weights[1] #* 2/6
     
     
     season_18 = df[df['SEASON_ID'] == '2018-19']
@@ -78,7 +78,7 @@ def combine_seasons(players_stats, player_id, weights):
     elif season_18.shape[0] > 1:
         season_18 = season_18[season_18['TEAM_ABBREVIATION'] == 'TOT'].iloc[:,6:] * weights[2]
     else:
-        season_18 = season_18.iloc[:,6:] * 1/6
+        season_18 = season_18.iloc[:,6:] * weights[2] #* 1/6
         
     values_pastSeasons = (season_20.values + season_19.values + season_18.values).flatten()
     
@@ -612,8 +612,8 @@ if __name__ == "__main__":
     stats_agg, stats_agg_notTransformed = aggregate_data(players_stats, [7/10, 2/10, 1/10], ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT'])
     # [0, 1, 2, 3, 4, 5, 6, 7, 8])
     data_emb, emb, _, _, _ = embeddings('umap', stats_agg, stats_agg_notTransformed)
-    sample_recommendation = RecommendationEngine(data_emb, "Draymond Green", emb, 'Fit', stats_agg)
-    sample_recommendation.recommend()
+    #sample_recommendation = RecommendationEngine(data_emb, "Draymond Green", emb, 'Fit', stats_agg)
+    #sample_recommendation.recommend()
 
 
 #Index(['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION',

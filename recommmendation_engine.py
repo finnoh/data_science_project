@@ -61,7 +61,7 @@ def combine_seasons(players_stats, player_id, weights):
     elif season_20.shape[0] > 1:
         season_20 = season_20[season_20['TEAM_ABBREVIATION'] == 'TOT'].iloc[:,6:] * weights[0]
     else:
-        season_20 = season_20.iloc[:,6:] * 1/2
+        season_20 = season_20.iloc[:,6:] * weights[0] #* 1/2
   
     season_19 = df[df['SEASON_ID'] == '2019-20']
     if season_19.shape[0] == 0:
@@ -69,7 +69,7 @@ def combine_seasons(players_stats, player_id, weights):
     elif season_19.shape[0] > 1:
         season_19 = season_19[season_19['TEAM_ABBREVIATION'] == 'TOT'].iloc[:,6:] * weights[1]
     else:
-        season_19 = season_19.iloc[:,6:] * 2/6
+        season_19 = season_19.iloc[:,6:] * weights[1] #* 2/6
     
     
     season_18 = df[df['SEASON_ID'] == '2018-19']
@@ -78,7 +78,7 @@ def combine_seasons(players_stats, player_id, weights):
     elif season_18.shape[0] > 1:
         season_18 = season_18[season_18['TEAM_ABBREVIATION'] == 'TOT'].iloc[:,6:] * weights[2]
     else:
-        season_18 = season_18.iloc[:,6:] * 1/6
+        season_18 = season_18.iloc[:,6:] * weights[2] #* 1/6
         
     values_pastSeasons = (season_20.values + season_19.values + season_18.values).flatten()
     
@@ -116,7 +116,7 @@ def aggregate_data(players_stats, w, norm = True):
         pass
     player_stats_agg_notTransformed = [x for x in player_stats_agg_notTransformed if x != 'NA']
     player_stats_agg_notTransformed = pd.DataFrame(player_stats_agg_notTransformed).sort_values(by=['PLAYER_ID']).reset_index(drop = True)
-    
+
     players_stats_agg = copy.deepcopy(player_stats_agg_notTransformed) # move in front
 
     if norm == True:
