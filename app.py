@@ -128,21 +128,37 @@ player_acc = html.Div(
     )
 )
 
-left_player = dbc.Col([html.Div(
-    [html.Div([html.Img(id='playerselect-image', style={'width': '100%'})], style={'display': 'inline-block'}),
-     html.Div([html.Img(id='teamSel-image', style={'width': '50%'})], style={'display': 'inline-block'})],
-    style={'width': '200%', 'display': 'inline-block'}),
-    html.Div([dcc.Dropdown(
-        id='playerselect-dropdown',
-        options=[{'label': player, 'value': player_selector.iloc[i, 1]} for i, player in
-                 enumerate(player_selector.label.unique())],
-        placeholder='Select a Player',
-        value=203500
-    )], style={'width': '33%'}),
-    html.Div(id='playerselect-output-container'),
-    html.Div(id='playerselect-score'),
-    player_acc
-], md=6)
+
+player_info_card = html.Div(
+    dbc.Container(
+        [
+            html.H2(id='playerselect-name-container', className="display-3"),
+            html.Div(
+                [html.Div([html.Img(id='playerselect-image', style={'width': '100%'})],
+                          style={'display': 'inline-block'}),
+                 html.Div([html.Img(id='teamSel-image', style={'width': '50%'})], style={'display': 'inline-block'})],
+                style={'width': '200%', 'display': 'inline-block'}),
+            html.Div([dcc.Dropdown(
+                id='playerselect-dropdown',
+                options=[{'label': player, 'value': player_selector.iloc[i, 1]} for i, player in
+                         enumerate(player_selector.label.unique())],
+                placeholder='Select a Player',
+                value=203500
+            )], style={'width': '33%'}),
+            html.Hr(className="my-2"),
+            html.Div(id='playerselect-output-container'),
+            html.Div(id='playerselect-score')
+        ],
+        fluid=True,
+        className="py-3",
+    ),
+    className="p-3 bg-light rounded-3"
+)
+
+
+left_player = dbc.Col([player_info_card,
+                       player_acc
+                       ], md=6)
 
 right_player = dbc.Col([dbc.Container([
     dcc.Graph(id='hotzone-graph')]), dbc.Container([dcc.Graph(id='playerselect-graph1')])
@@ -232,7 +248,6 @@ dim_red = dbc.Col([html.Div(
 app.layout = html.Div(children=[
     dcc.Tabs(id='tabs-example', value='tab-1', children=[
         dcc.Tab(label='Player', value='tab-1', children=[
-            html.H2(children='Player', className="display-3"),
             jumbotron_player
         ]),
         dcc.Tab(label='Team', value='tab-5', children=[jumbotron
@@ -251,10 +266,12 @@ app.layout = html.Div(children=[
 # APP CALLBACKS
 
 @app.callback(
-    [Output('playerselect-output-container', 'children')],
+    [Output('playerselect-output-container', 'children'),
+     Output('playerselect-name-container', 'children')],
     Input('playerselect-dropdown', 'value'))
 def update_output(value):
-    return [f'Player has the ID: {value}']
+    player_name, _ = _player_full_name(str(value))
+    return [f'Player has the ID: {value}'], player_name
 
 
 @app.callback(
@@ -387,14 +404,14 @@ def _player_wiki_summary(value):
     [Input('playerselect-dropdown', 'value')])
 def hotzone_graph(value):
     shots = hotzone(value)
-    fig = px.scatter(x=shots["LOC_X"], y=shots["LOC_Y"], color=shots['SHOT_MADE_FLAG'].astype(str), title="Hot zone",
+    fig = px.scatter(x=shots["LOC_X"], y=shots["LOC_Y"], color=shots['SHOT_MADE_FLAG'].astype(str),
                      width=1200, height=1000)
     # fig.update_layout(transition_duration=500, template='simple_white')
     # fig = px.density_heatmap(shots, x="LOC_X", y="LOC_Y", z="SHOT_MADE_FLAG", histfunc="avg", width=1200, height=1000)
 
     # fig = fig.update_layout(template="simple_white")
     fig = draw_plotly_court(fig=fig, fig_width=600)
-    # fig.update(layout_showlegend=False)
+    fig.update_layout(yaxis_visible=False, yaxis_showticklabels=False, xaxis_visible=False, xaxis_showticklabels=False)
     return fig
 
 
