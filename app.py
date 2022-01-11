@@ -34,8 +34,8 @@ import plotly.express as px
 from src.get_data import get_clean_player_data, get_player_score
 from src.utils_dash import _player_selector
 import recommmendation_engine
-
 import dash_bootstrap_components as dbc
+from src.tabs import player, team, recommendation
 
 app = dash.Dash(__name__, title="NBA GM", external_stylesheets=[dbc.themes.LUX])
 
@@ -44,217 +44,21 @@ app = dash.Dash(__name__, title="NBA GM", external_stylesheets=[dbc.themes.LUX])
 
 # SETUP STATIC DATA
 player_selector = _player_selector()
-team_selector = _team_selector()
-player_data = recommmendation_engine.get_players_data()
-team_data = recommmendation_engine.get_teams_data()
 
 # APP ELEMENTS
-
-offcanvas = html.Div(
-    [
-        dbc.Button("Further Team Information", id="teamselect-open-offcanvas", n_clicks=0, color='light'),
-        dbc.Offcanvas([html.Div(
-            html.P(id='teamselect-output-wiki'
-                   )),
-
-            dbc.Button(id="teamselect-link-button",
-                       target="_blank",
-                       color="info", external_link=True)],
-            backdrop=True,
-            scrollable=True,
-            id="offcanvas",
-            is_open=False,
-            placement='top'
-        ),
-    ]
-)
-
-col_teamname = dbc.Col(html.Div(
-    [html.H2(id='teamselect-output-container',
-             className="display-3", style={'margin': 'auto', 'width': '100%', 'display': 'inline-block'}), offcanvas]),
-    md=9)
-
-col_logo = dbc.Col(html.Div(
-    [html.Img(id='teamselect-image', style={'margin': 'auto', 'width': '120%', 'display': 'inline-block'})]), md=3)
-
-starplayer = dbc.Alert(
-    [
-        html.H4("Starplayer", className="alert-heading"),
-        html.P(id='teamselect-mvp-descr'),
-        html.Hr(),
-        html.P(
-            id='teamselect-mvp-name',
-            className="mb-0",
-        ),
-    ]
-)
-
-right_part = dbc.Col([html.Div(
-    [html.Img(id='teamselect-mvp-image', style={'margin': 'auto', 'width': '50%', 'display': 'inline-block'})]),
-    starplayer],
-    md=6)
-
-left_jumbotron = dbc.Col([dbc.Row([col_teamname, col_logo], className="align-items-md-stretch"),
-                          html.Hr(className="my-2"),
-                          dcc.Dropdown(
-                              id='teamselect-dropdown',
-                              options=[{'label': team,
-                                        'value': team_selector.iloc[
-                                            i, 1]} for i, team in
-                                       enumerate(
-                                           team_selector.label.unique())],
-                              value='ATL'
-                          ), html.Hr(className="my-2"),
-                          dbc.Container([
-                              dcc.Graph(id='teamselect-capspace-graph')
-                          ])], md=6, className="h-100 p-5 bg-light border rounded-3")
-
-jumbotron = dbc.Row(
-    [left_jumbotron, right_part],
-    className="align-items-md-stretch",
-)
-
-player_acc = html.Div(
-    dbc.Accordion(
-        [
-            dbc.AccordionItem(
-                [dash_table.DataTable(id='playerselect-table')], title="Career Stats"
-            ),
-            dbc.AccordionItem(
-                html.Div(id='playerselect-output-container-wiki'), title="Player-Bio"
-            )
-        ],
-        flush=False,
-    )
-)
-
-
-player_info_card = html.Div(
-    dbc.Container(
-        [
-            html.H2(id='playerselect-name-container', className="display-3"),
-            html.Div(
-                [html.Div([html.Img(id='playerselect-image', style={'width': '100%'})],
-                          style={'display': 'inline-block'}),
-                 html.Div([html.Img(id='teamSel-image', style={'width': '50%'})], style={'display': 'inline-block'})],
-                style={'width': '200%', 'display': 'inline-block'}),
-            html.Div([dcc.Dropdown(
-                id='playerselect-dropdown',
-                options=[{'label': player, 'value': player_selector.iloc[i, 1]} for i, player in
-                         enumerate(player_selector.label.unique())],
-                placeholder='Select a Player',
-                value=203500
-            )], style={'width': '33%'}),
-            html.Hr(className="my-2"),
-            html.Div(id='playerselect-output-container'),
-            html.Div(id='playerselect-score')
-        ],
-        fluid=True,
-        className="py-3",
-    ),
-    className="p-3 bg-light rounded-3"
-)
-
-
-left_player = dbc.Col([player_info_card,
-                       player_acc
-                       ], md=6)
-
-right_player = dbc.Col([dbc.Container([
-    dcc.Graph(id='hotzone-graph')]), dbc.Container([dcc.Graph(id='playerselect-graph1')])
-], md=6)
-
-jumbotron_player = dbc.Row(
-    [left_player, right_player],
-    className="align-items-md-stretch"
-)
-
-top_card_rec = dbc.Card(
-    [
-        dbc.CardImg(id='playerRep-image', top=True),
-        dbc.CardBody(
-            html.Div(
-                [dcc.Dropdown(
-                    id='teamRec-starting5-dropdown',
-                    placeholder='Select a player',
-                    value='LeBron James'
-
-                )], style={'width': '100%'}
-            ),
-        ),
-    ],
-    style={"width": "15rem", "align": "auto"}
-)
-
-bottom_card_rec = dbc.Card(
-    [
-        dbc.CardImg(id='playerRec-image', top=True),
-        dbc.CardBody(html.H4(id='teamRec-player-dropdown', className="card-text"))
-    ],
-    style={"width": "15rem", "align": "auto"}
-)
-
-team_card_rec = dbc.Card(
-    [
-        dbc.CardImg(id='teamRep-image', top=True),
-        dbc.CardBody(
-            [dcc.Dropdown(
-                id='teamRec-select-dropdown',
-                options=[{'label': list(team_data['full_name'])[i], 'value': abb} for i, abb in
-                         enumerate(team_data['abbreviation'])],
-                placeholder='Select a Team',
-                value='LAL'
-
-            )])
-    ],
-    style={"width": "20rem", "align": "auto"})
-
-method_select_rec = html.Div([
-    dbc.Label("Method"),
-    dbc.RadioItems(
-        options=[{'label': 'Similar player', 'value': 'Similar'},
-                 {'label': 'Complementary player', 'value': 'Fit'}],
-        value='Similar',
-        id='recommendation-type'
-    ),
-])
-
-cards_rec = dbc.Row(
-    [method_select_rec,
-     dbc.Col(team_card_rec, width="auto"),
-     dbc.Col(top_card_rec, width="auto"),
-     dbc.Col(dcc.Loading([bottom_card_rec], fullscreen=False, type='dot', color="#119DFF"), width="auto")
-     ], className="align-items-md-stretch"
-)
-
-dim_red = dbc.Col([html.Div(
-    [dcc.Dropdown(
-        id='dimreduction-dropdown',
-        options=[{'label': 'Spectral Embedding', 'value': 'spectral'},
-                 {'label': 'TSNE', 'value': 'tsne'},
-                 {'label': 'UMAP', 'value': 'umap'},
-                 {'label': 'PCA', 'value': 'pca'}],
-        placeholder='Select a dimensionality reduction technique',
-        value='spectral'
-    )], style={'width': '60%'}
-),
-    dbc.Container([
-        dcc.Loading(children=[dcc.Graph(id='dimreduction-graph1')], fullscreen=False, type='dot',
-                    color="#119DFF")
-    ])], md=12)
 
 
 # APP LAYOUT
 app.layout = html.Div(children=[
     dcc.Tabs(id='tabs-example', value='tab-1', children=[
         dcc.Tab(label='Player', value='tab-1', children=[
-            jumbotron_player
+            player.jumbotron_player
         ]),
-        dcc.Tab(label='Team', value='tab-5', children=[jumbotron
+        dcc.Tab(label='Team', value='tab-5', children=[team.jumbotron
                                                        ]),
         dcc.Tab(label='Recommendation', value='tab-3', children=[
             html.H2(children='Trade Assist', className="display-3"),
-            html.Div([cards_rec, dim_red])
+            html.Div([recommendation.cards_rec, recommendation.dim_red])
         ])
     ], colors={
         "border": "white",
@@ -405,7 +209,7 @@ def _player_wiki_summary(value):
 def hotzone_graph(value):
     shots = hotzone(value)
     fig = px.scatter(x=shots["LOC_X"], y=shots["LOC_Y"], color=shots['SHOT_MADE_FLAG'].astype(str),
-                     width=1200, height=1000)
+                     width=1200, height=1000, opacity=0.5)
     # fig.update_layout(transition_duration=500, template='simple_white')
     # fig = px.density_heatmap(shots, x="LOC_X", y="LOC_Y", z="SHOT_MADE_FLAG", histfunc="avg", width=1200, height=1000)
 
