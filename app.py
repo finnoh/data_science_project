@@ -1,52 +1,22 @@
-import dash
-import wikipediaapi
-from dash import dcc, html
-from dash import dash_table
-from dash.dependencies import Input, Output
-import plotly.express as px
-import plotly.graph_objs as go
-import pandas as pd
-from src.get_data import get_clean_player_data
-from src.utils_dash import _player_selector
-import recommmendation_engine
 from hotzone import hotzone
-import plotly.figure_factory as ff
-import plotly.express as px
-import dash
-import wikipediaapi
-import requests
-from PIL import Image
-from dash import dcc, html
-from dash import dash_table
 from dash.dependencies import Input, Output, State
-import plotly.express as px
-import plotly.graph_objs as go
-import pandas as pd
-from src.get_data import get_clean_player_data, get_team_image
 from src.utils_dash import _player_selector, _team_selector, _link_team_website, _team_full_name, _get_team_id, \
     _get_mvp_id_team, _player_full_name, _mvp_descr_builder, draw_plotly_court
 import dash
 import wikipediaapi
 from dash import dcc, html
-from dash import dash_table
 from dash.dependencies import Input, Output
 import plotly.express as px
 from src.get_data import get_clean_player_data, get_player_score
-from src.utils_dash import _player_selector
 import recommmendation_engine
 import dash_bootstrap_components as dbc
 from src.tabs import player, team, recommendation
 
 app = dash.Dash(__name__, title="NBA GM", external_stylesheets=[dbc.themes.LUX])
 
+
 # assume you have a "long-form" data frame
 # see https://plotly.com/python/px-arguments/ for more options
-
-# SETUP STATIC DATA
-player_selector = _player_selector()
-
-# APP ELEMENTS
-
 
 # APP LAYOUT
 app.layout = html.Div(children=[
@@ -66,6 +36,12 @@ app.layout = html.Div(children=[
         "background": "white"})
 ])
 
+
+# SETUP FOR CALLBACKS
+player_selector = _player_selector()
+team_selector = _team_selector()
+player_data = recommmendation_engine.get_players_data()
+team_data = recommmendation_engine.get_teams_data()
 
 # APP CALLBACKS
 
