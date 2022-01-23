@@ -323,8 +323,6 @@ def embeddings(option: str):
     cursor.connect("add", lambda sel: sel.annotation.set_text(data_names[sel.index]))
     plt.show()
 
-# center anschauen -> Why Daniel Theis shown as F?
-
 # pro position:
 # pos = 'F'
 # data_pos = players_stats_agg[players_data['position'] == pos].iloc[:,5:]

@@ -290,28 +290,28 @@ def starting_five(team_abb: str, names = False):
 
 ## Dimensionality reduction
 
-def embeddings(option: str, stats_agg, stats_agg_notTransformed):
+def embeddings(option: str, stats_agg, stats_agg_notTransformed, dim = 2):
     data_names = list(players_data['player_names'])
     players_stats = copy.deepcopy(stats_agg.iloc[:,:5])
 
     if option == "spectral":
         from sklearn.manifold import SpectralEmbedding
-        embedding = SpectralEmbedding(random_state = 42, n_neighbors = stats_agg.shape[0]//75)
+        embedding = SpectralEmbedding(n_components = dim, random_state = 42, n_neighbors = stats_agg.shape[0]//75)
         #stats_transformed = embedding.fit_transform(players_stats_agg.iloc[:,5:])
 
     elif option == 'tsne':
         from sklearn.manifold import TSNE
-        embedding = TSNE()
+        embedding = TSNE(n_components = dim)
         #stats_transformed = embedding.fit_transform(players_stats_agg.iloc[:,5:])
 
     elif option == 'umap':
         import umap.umap_ as umap
-        embedding = umap.UMAP(random_state = 42)
+        embedding = umap.UMAP(n_components = dim, random_state = 42)
         #stats_transformed = embedding.fit_transform(players_stats_agg.iloc[:,5:])
 
     elif option == 'pca':
         from sklearn.decomposition import PCA
-        embedding = PCA(n_components=2)
+        embedding = PCA(n_components = dim)
 
     else:
         print('Please enter a valid embedding.')
@@ -320,6 +320,10 @@ def embeddings(option: str, stats_agg, stats_agg_notTransformed):
 
     players_stats["embedding_1"] = stats_transformed[:,0]
     players_stats["embedding_2"] = stats_transformed[:,1]
+
+    if dim == 3:
+        players_stats["embedding_3"] = stats_transformed[:,2]
+
     
     return players_stats, embedding, players_data['position'], data_names, stats_agg_notTransformed.iloc[:,5:]
 
@@ -328,8 +332,6 @@ def embeddings(option: str, stats_agg, stats_agg_notTransformed):
     cursor = mplcursors.cursor(hover=True)
     cursor.connect("add", lambda sel: sel.annotation.set_text(data_names[sel.index]))
     plt.show()
-
-# center anschauen -> Why Daniel Theis shown as F?
 
 # pro position:
 # pos = 'F'
@@ -340,82 +342,54 @@ def embeddings(option: str, stats_agg, stats_agg_notTransformed):
 #  Class definition
 
 class RecommendationEngine:
-    def __init__(self, data, replacing_player, transformer, option, stats_agg):
+    def __init__(self, data, replacing_player, option):
         self.stats = data
         self.option = option
         self.player_name = replacing_player
-        self.transformer = transformer    
-        try:
-            self.player_id = players_data[players_data["player_names"] == replacing_player]['id'].iloc[0]
-        except IndexError:
-            print("Please provide the full name of a valid active NBA player.")
+        self.player_id = players_data[players_data["player_names"] == replacing_player]['id'].iloc[0]
         self.position = adj_position(commonplayerinfo.CommonPlayerInfo(self.player_id).get_data_frames()[0]['POSITION'][0])
         self.team = self.team_lastSeason()
-        self.stats_agg = stats_agg
             
     def recommend(self):   
         #ids_samePosition = list(players_data[players_data["position"] == self.position]['id'])
         #stats = players_stats_agg[players_stats_agg['PLAYER_ID'].isin(ids_samePosition)] # get only players of same position
-        #stats = data_used # get players from all positions
         
         stats_repl_player = self.stats[self.stats['PLAYER_ID'] == self.player_id].iloc[:,5:] # get data from player to be replaced
         stats = self.stats[players_data['team'] != self.team] # exclude players from same team
-        stats_num = stats.iloc[:,5:]        
+        stats_num = stats.iloc[:,5:].to_numpy()        
         if stats_repl_player.shape[0] != 0:
-        
-            # https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.NearestNeighbors.html
-            '''
-            model = NearestNeighbors(n_jobs = -1).fit(stats_num)
-            res_distances, res_players = model.kneighbors(stats_repl_player, return_distance = True)
-            res_distances, res_players = res_distances[0], res_players[0]
-            res_player_0 = res_players[0]
-                
-            res_player_id = stats.reset_index()['PLAYER_ID'][res_player_0]
-            rec_player = players_data[players_data['id'] == res_player_id]['player_names'].iloc[0]
-            closest_players = []
-            for i in range(len(res_players)):
-                id_player = stats.reset_index()['PLAYER_ID'][res_players[i]]
-                closest_players.append({'player': players_data[players_data['id'] == id_player]['player_names'].iloc[0],
-                                        'distance': res_distances[i]})
-            '''
+    
+            model = NearestNeighbors(n_jobs = -1).fit(stats_num) # fit nearest neighbor model to all remaining players
 
             if self.option == 'Similar':
-                closest_players = []
-                closest_idx, closest_distances = self.closest_node(stats_repl_player, stats_num)
+                closest_distances, closest_idx = model.kneighbors(stats_repl_player.to_numpy(), n_neighbors = 5, return_distance = True) # get closest players
+                closest_distances, closest_idx = closest_distances[0], closest_idx[0] # remove double indexing
                 
-                
-            elif self.option == 'Fit':
-                maxs = self.get_maxs_teams()
-                #ind_player = players_data[players_data['id'] == self.player_id].index.tolist()[0]
-                
-                # get starting five of team
+            elif self.option == 'Fit':               
+                # get starting five of team (without player to be replaced)
                 start_five_team = list(starting_five(self.team, names = False).keys())
                 start_five_team.remove(self.player_id)
                 
-                data_team = pd.concat([self.stats_agg[self.stats_agg['PLAYER_ID'] == start_five_team[i]] for i in range(len(start_five_team))])
+                # get aggregate statistics of the team of the player to be replaced
+                data_team = pd.concat([self.stats[self.stats['PLAYER_ID'] == start_five_team[i]] for i in range(len(start_five_team))])
                 data_team = np.abs(np.array(data_team.iloc[:,5:].sum(axis=0)))
+
+                # get desired attributes for team -> to be adjusted via Clustering!
+                maxs = self.get_maxs_teams()
+                
+                # compute ideal complementary player for team
                 diff = np.abs(maxs - data_team)
                 dist_attributes = self.softmax(diff)
                 #ideal_player = dist_attributes * maxs * maxs.sum() # pro Attribut um x% verbessern (1+) # data_team
                 ideal_player = dist_attributes * maxs # * np.linalg.norm(maxs, ord = 2)
-                ideal_player = maxs - data_team ###
-                emd_ideal_player = self.transformer.transform(ideal_player.reshape(1, -1))
-                #print(f"distribution: {dist_attributes}")
-                #print(f"ideal player: {ideal_player}")
-                #print(f"final embedding: {emd_ideal_player}")
+                ideal_player = maxs - data_team        
                 
-                
-                ##fig, ax = plt.subplots()
-                ##ax.scatter(self.stats.iloc[:,5], self.stats.iloc[:,6], c= 'black')#players_data['position'].map({'C':'orange', 'F':'black', 'G':'blue'}))
-                ##ax.scatter(emd_ideal_player[0,0], emd_ideal_player[0,1], c='green')
-                ##ax.scatter(self.stats.iloc[ind_player,5], self.stats.iloc[ind_player,6], c='red')
-                ##plt.show()
-
-
-                closest_players = []
-                closest_idx, closest_distances = self.closest_node(emd_ideal_player, stats_num)
+                # get closest players and remove double indexing
+                closest_distances, closest_idx = model.kneighbors(ideal_player.reshape(1, -1), n_neighbors = 5, return_distance = True)
+                closest_distances, closest_idx = closest_distances[0], closest_idx[0]
             
-
+            # create list of best recommendations
+            closest_players = []
             for i in range(len(closest_idx)):
                 id_player = stats.reset_index()['PLAYER_ID'][closest_idx[i]]
                 closest_players.append({'player': players_data[players_data['id'] == id_player]['player_names'].iloc[0],
@@ -423,15 +397,14 @@ class RecommendationEngine:
             rec_player = closest_players[0]['player']
                
             
-            
             print(f"Input Player: {self.player_name} (Team: {self.team})")
             print('Salary:')
             salary_input_player = self.player_salary(self.player_name)
             print(salary_input_player)
             
             ##self.plot_distance(closest_players)
-            p_ids = [stats.reset_index()['PLAYER_ID'][closest_idx[i]] for i in range(len(closest_idx))]
-            p_ids.append(self.player_id)
+            ##p_ids = [stats.reset_index()['PLAYER_ID'][closest_idx[i]] for i in range(len(closest_idx))]
+            ##p_ids.append(self.player_id)
             ##self.plot_distance2(p_ids)
 
             
@@ -576,17 +549,17 @@ class RecommendationEngine:
     
     
     def get_maxs_teams(self):
-        performance_teams = np.zeros((teams_data.shape[0], len(self.stats_agg.columns)-5))
+        performance_teams = np.zeros((teams_data.shape[0], len(self.stats.columns)-5))
         for i in range(teams_data.shape[0]):
             team_abb = list(teams_data['abbreviation'])[i]
             start_five_team = list(starting_five(team_abb, names = False).keys())
-            data_team = pd.concat([self.stats_agg[self.stats_agg['PLAYER_ID'] == start_five_team[i]] for i in range(len(start_five_team))])
+            data_team = pd.concat([self.stats[self.stats['PLAYER_ID'] == start_five_team[i]] for i in range(len(start_five_team))])
             performance_teams[i, :] = np.array(data_team.iloc[:,5:].sum(axis=0))
 
         maxs = np.amax(performance_teams, axis=0) 
         # oder: umdrehen bei import via - die column?
         col_min = ['PLAYER_AGE', 'PF', 'TOV']
-        ind_min = [self.stats_agg.columns.get_loc(i)-5 for i in col_min if i in self.stats_agg.columns]
+        ind_min = [self.stats.columns.get_loc(i)-5 for i in col_min if i in self.stats.columns]
         #self.stats_agg[]
 
         for i in range(len(ind_min)):
@@ -605,15 +578,19 @@ class RecommendationEngine:
         e_x = np.exp(x - np.max(x))
         return e_x / e_x.sum()
 
+#def model_teams():
+# top 4 teams of last 5 years as models or top 8 teams of last 3 years?
+# get boxscores -> starting five (-> CLUSTERN: dann auswahl möglich von durchschnittlichen attributen je cluster) & remove player of position of replacing player **see in data/season_prediction**
+# get aggregated performances of these players over past 3 seasons  -> aggregate team performance
+# -> compare similarity of this team to the team at end
 
 # Exemplary execution
-
 if __name__ == "__main__":
-    stats_agg, stats_agg_notTransformed = aggregate_data(players_stats, [7/10, 2/10, 1/10], ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT'])
-    # [0, 1, 2, 3, 4, 5, 6, 7, 8])
-    data_emb, emb, _, _, _ = embeddings('umap', stats_agg, stats_agg_notTransformed)
-    #sample_recommendation = RecommendationEngine(data_emb, "Draymond Green", emb, 'Fit', stats_agg)
-    #sample_recommendation.recommend()
+    w = [7/10, 2/10, 1/10]
+    stats_agg, stats_agg_notTransformed = aggregate_data(players_stats, w, ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT']) # [0, 1, 2, 3, 4, 5, 6, 7, 8])
+    data_emb, emb, _, _, _ = embeddings('spectral', stats_agg, stats_agg_notTransformed, dim=3)
+    sample_recommendation = RecommendationEngine(stats_agg, "Draymond Green", 'Fit').recommend()
+    #model_teams()
 
 
 #Index(['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION',

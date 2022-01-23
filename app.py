@@ -241,7 +241,7 @@ app.layout = html.Div(children=[
 
             html.Div(
                 [dcc.Dropdown(
-                    id='dimreduction-dropdown',
+                    id='dimreduction-type',
                     options=[{'label': 'Sepectral Embedding', 'value': 'spectral'},
                              {'label': 'TSNE', 'value': 'tsne'},
                              {'label': 'UMAP', 'value': 'umap'},
@@ -250,9 +250,18 @@ app.layout = html.Div(children=[
                     value='spectral'
                 )], style={'width': '20%'}
             ),
+            html.Div(
+                [dcc.Dropdown(
+                    id='dimreduction-dim',
+                    options=[{'label': '2D', 'value': 2},
+                             {'label': '3D', 'value': 3}],
+                    placeholder='Select the reduced number of dimensions',
+                    value='2'
+                )], style={'width': '20%'}
+            ),
             dbc.Container([
 
-                dcc.Loading(children=[dcc.Graph(id='dimreduction-graph1')], fullscreen=False, type='dot',
+                dcc.Loading(children=[dcc.Graph(id='dimreduction-graph1', responsive='auto')], fullscreen=False, type='dot',
                             color="#119DFF")
 
             ])
@@ -410,26 +419,43 @@ def hotzone_graph(value):
 
 @app.callback(
     Output('dimreduction-graph1', 'figure'),
-    [Input('dimreduction-dropdown', 'value')])
-def get_emb(value):
+    [Input('dimreduction-type', 'value'), Input('dimreduction-dim', 'value')])
+def get_emb(type, dim):
     stats_agg, stats_agg_notTransformed = recommmendation_engine.aggregate_data(players_stats, [7/10, 2/10, 1/10])
-    players_stats_emb, _, positions, data_names, player_stats = recommmendation_engine.embeddings(value, stats_agg, stats_agg_notTransformed)
+    players_stats_emb, _, positions, data_names, player_stats = recommmendation_engine.embeddings(type, stats_agg, stats_agg_notTransformed, int(dim))
     name_emb = {'spectral': 'Sepectral Embedding', 'tsne': 'TSNE', 'umap': 'UMAP', 'pca': 'PCA'}
 #    player_stats.positions = positions
 #    player_stats.head()
-    fig = px.scatter(players_stats_emb, x="embedding_1", y="embedding_2", color = positions, hover_name = data_names, 
-                    hover_data={'embedding_1':False, 
-                                'embedding_2':False, 
-                                'Position': positions,
-                                'Age': player_stats['PLAYER_AGE'],
-                                'Points': player_stats['GP'],
-                                '3P PCT': (':.3f', player_stats['FG3_PCT']), 
-                                'Assists': (':.3f', player_stats['AST']),
-                                'Rebounds': (':.3f', player_stats['REB'])
-                                },
-                    labels={"embedding_1": "Embedding Dimension 1", "embedding_2": "Embedding Dimension 2"}, title=f"{name_emb[str(value)]} representation of NBA players")
-    fig.update_layout(transition_duration=500, template='simple_white')
-    return fig
+    if int(dim) == 2:
+        fig = px.scatter(players_stats_emb, x="embedding_1", y="embedding_2", color = positions, hover_name = data_names, 
+                        hover_data={'embedding_1':False, 
+                                    'embedding_2':False, 
+                                    'Position': positions,
+                                    'Age': player_stats['PLAYER_AGE'],
+                                    'Points': player_stats['GP'],
+                                    '3P PCT': (':.3f', player_stats['FG3_PCT']), 
+                                    'Assists': (':.3f', player_stats['AST']),
+                                    'Rebounds': (':.3f', player_stats['REB'])
+                                    },
+                        labels={"embedding_1": "Embedding Dimension 1", "embedding_2": "Embedding Dimension 2"}, title=f"{name_emb[str(type)]} representation of NBA players")
+        fig.update_layout(transition_duration=500, template='simple_white')
+        return fig
+    
+    if int(dim) == 3:
+        fig = px.scatter_3d(players_stats_emb, x="embedding_1", y="embedding_2", z = "embedding_3", color = positions, hover_name = data_names, 
+                        hover_data={'embedding_1':False, 
+                                    'embedding_2':False, 
+                                    'embedding_3':False, 
+                                    'Position': positions,
+                                    'Age': player_stats['PLAYER_AGE'],
+                                    'Points': player_stats['GP'],
+                                    '3P PCT': (':.3f', player_stats['FG3_PCT']), 
+                                    'Assists': (':.3f', player_stats['AST']),
+                                    'Rebounds': (':.3f', player_stats['REB'])
+                                    },
+                        labels={"embedding_1": "Embedding Dimension 1", "embedding_2": "Embedding Dimension 2", "embedding_3": "Embedding Dimension 2"}, title=f"{name_emb[str(type)]} representation of NBA players")
+        fig.update_layout(transition_duration=500, template='simple_white')
+        return fig
 
 
 @app.callback(
@@ -461,9 +487,9 @@ def selected_player(rep_player, rec_type, cols):
         cols.remove('PLAYER_AGE')
     else:
         sel_col = ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'GP', 'GS', 'MIN']
-    stats_agg, stats_agg_notTransformed = recommmendation_engine.aggregate_data(players_stats, [7/10, 2/10, 1/10], sel_col+cols)
-    data_emb, emb, _, _, _ = recommmendation_engine.embeddings('umap', stats_agg, stats_agg_notTransformed)
-    sample_recommendation = recommmendation_engine.RecommendationEngine(data_emb, rep_player, emb, rec_type, stats_agg) # 'Similar'
+    stats_agg, _ = recommmendation_engine.aggregate_data(players_stats, [7/10, 2/10, 1/10], sel_col+cols)
+    #data_emb, emb, _, _, _ = recommmendation_engine.embeddings('umap', stats_agg, stats_agg_notTransformed)
+    sample_recommendation = recommmendation_engine.RecommendationEngine(stats_agg, rep_player, rec_type) # 'Similar'
     r = sample_recommendation.recommend()
     return r
 
@@ -502,45 +528,3 @@ def select_all_none(all_selected, options):
 if __name__ == '__main__':
     app.run_server(debug=True)
 
-
-# Recommendation Tab:
-# which embedding, fit/similar, outputs
-# only umap works in recommendation engine
-# add correct output (incl. graphs) from recommendation
-# option: age included, age excluded for best fit
-# which player fit best to strategy
-# cut off for minutes played; player obere bubble?
-# age rausnehmen?
-# box für user mit attributen zur auswahl
-# zur auswahl geben wie saisons gewichtet werden
-
-# Finn: 
-# 5 wichtigsten attribute pro spieler angeben -> wie angeben @ Finn?
-# performance plot bei steph curry?
-# finns parameter einbauen
-
-# Präsi:
-# story kommunizieren, data management (wie daten, wie transformiert?), prozess dokumentieren, auch methodik zeigen, was sind unsere Fragen? -> wie passen Modelle zusammen
-# wird nicht benotet
-# columns for projection in präsi
-# skizze for ideal präsi
-# max. 15 min präsi
-
-# Done:
-# add Spinner (via output von model?) https://www.youtube.com/watch?v=t1bKNj021do
-# performance & hot zone, logo player -> player
-# add picture of player below selection
-# add "loading" button? https://stackoverflow.com/questions/54439548/display-loading-symbol-while-waiting-for-a-result-with-plot-ly-dash
-# https://community.plotly.com/t/updating-a-dropdown-menus-contents-dynamically/4920
-# https://dash-bootstrap-components.opensource.faculty.ai/docs/components/
-# NBA: difference mit weights scales
-# add dropdown for similar or fit
-
-
-# additional scraping of: https://www.basketball-reference.com/
-# steph curry -> louis williams?
-# # IDs in file als string importen
-# dim reduction (search for player)
-# have to add * weights[0] etc. in combine_seasons() instead of hard-coded values
-
-# Add number of non-zero elements in cap salary plot
