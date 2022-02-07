@@ -11,6 +11,7 @@ from src.utils_dash import _player_selector
 #import recommmendation_engine
 from hotzone import hotzone
 
+import copy
 import dash
 import wikipediaapi
 import requests
@@ -47,6 +48,8 @@ team_selector = _team_selector()
 player_data = recommmendation_engine.get_players_data()
 team_data = recommmendation_engine.get_teams_data()
 players_stats = recommmendation_engine.get_players_stats()
+boxscores_20_21 = recommmendation_engine.get_boxscores('20_21')
+
 
 # APP ELEMENTS
 
@@ -162,8 +165,8 @@ app.layout = html.Div(children=[
             html.Div(
                 [dcc.Checklist(
                         id="checklist-allColumns",
-                        options=[{"label": "Select All", "value": "All"}],
-                        value=['All'],
+                        options=[{"label": "All attributes", "value": "All"}, {"label": "Offensive attributes", "value": "Off"}, {"label": "Defensive attributes", "value": "Def"}],
+                        value=[],
                         labelStyle={"display": "inline-block"},
                     ),
                     dcc.Checklist(
@@ -257,6 +260,15 @@ app.layout = html.Div(children=[
                              {'label': '3D', 'value': 3}],
                     placeholder='Select the reduced number of dimensions',
                     value='2'
+                )], style={'width': '20%'}
+            ),
+            html.Div(
+                [dcc.Dropdown(
+                    id='playerselect-dropdown_dimreduction',
+                    options=[{'label': player, 'value': player_selector.iloc[i, 1]} for i, player in
+                            enumerate(player_selector.label.unique())],
+                    placeholder='Select a Player',
+                    value= 2544
                 )], style={'width': '20%'}
             ),
             dbc.Container([
@@ -419,15 +431,21 @@ def hotzone_graph(value):
 
 @app.callback(
     Output('dimreduction-graph1', 'figure'),
-    [Input('dimreduction-type', 'value'), Input('dimreduction-dim', 'value')])
-def get_emb(type, dim):
-    stats_agg, stats_agg_notTransformed = recommmendation_engine.aggregate_data(players_stats, [7/10, 2/10, 1/10])
-    players_stats_emb, _, positions, data_names, player_stats = recommmendation_engine.embeddings(type, stats_agg, stats_agg_notTransformed, int(dim))
+    [Input('dimreduction-type', 'value'), Input('dimreduction-dim', 'value'), Input('playerselect-dropdown_dimreduction', 'value')])
+def get_emb(dim_type, dim, player):
+    stats_agg, stats_agg_notTransformed = recommmendation_engine.aggregate_data(players_stats, w = [7/10, 2/10, 1/10]) 
+    players_stats_emb, _, positions, data_names, player_stats = recommmendation_engine.embeddings(dim_type, stats_agg, stats_agg_notTransformed, int(dim)) # player
     name_emb = {'spectral': 'Sepectral Embedding', 'tsne': 'TSNE', 'umap': 'UMAP', 'pca': 'PCA'}
 #    player_stats.positions = positions
 #    player_stats.head()
+
+    ind_player = list(player_data.index[player_data['id'] == player])[0] ### Implement selection of players!!
+    labels = copy.deepcopy(list(positions))
+    labels[ind_player] = list(player_data[player_data['id'] == player]['player_names'])[0]
+
     if int(dim) == 2:
-        fig = px.scatter(players_stats_emb, x="embedding_1", y="embedding_2", color = positions, hover_name = data_names, 
+        fig = px.scatter(players_stats_emb, x="embedding_1", y="embedding_2", color = labels, hover_name = data_names, 
+                        color_discrete_sequence=["red", "green", "blue", "yellow"],
                         hover_data={'embedding_1':False, 
                                     'embedding_2':False, 
                                     'Position': positions,
@@ -437,12 +455,13 @@ def get_emb(type, dim):
                                     'Assists': (':.3f', player_stats['AST']),
                                     'Rebounds': (':.3f', player_stats['REB'])
                                     },
-                        labels={"embedding_1": "Embedding Dimension 1", "embedding_2": "Embedding Dimension 2"}, title=f"{name_emb[str(type)]} representation of NBA players")
+                        labels={"embedding_1": "Embedding Dimension 1", "embedding_2": "Embedding Dimension 2"}, title=f"{name_emb[str(dim_type)]} representation of NBA players")
         fig.update_layout(transition_duration=500, template='simple_white')
         return fig
     
     if int(dim) == 3:
         fig = px.scatter_3d(players_stats_emb, x="embedding_1", y="embedding_2", z = "embedding_3", color = positions, hover_name = data_names, 
+                        color_discrete_sequence=["red", "green", "blue", "yellow"],
                         hover_data={'embedding_1':False, 
                                     'embedding_2':False, 
                                     'embedding_3':False, 
@@ -453,7 +472,7 @@ def get_emb(type, dim):
                                     'Assists': (':.3f', player_stats['AST']),
                                     'Rebounds': (':.3f', player_stats['REB'])
                                     },
-                        labels={"embedding_1": "Embedding Dimension 1", "embedding_2": "Embedding Dimension 2", "embedding_3": "Embedding Dimension 2"}, title=f"{name_emb[str(type)]} representation of NBA players")
+                        labels={"embedding_1": "Embedding Dimension 1", "embedding_2": "Embedding Dimension 2", "embedding_3": "Embedding Dimension 2"}, title=f"{name_emb[str(dim_type)]} representation of NBA players")
         fig.update_layout(transition_duration=500, template='simple_white')
         return fig
 
@@ -462,7 +481,7 @@ def get_emb(type, dim):
     Output('teamRec-starting5-dropdown', 'options'),
     [Input('teamRec-select-dropdown', 'value')])
 def get_starting_five(value):
-    players_team = recommmendation_engine.starting_five(value, names=True)
+    players_team = recommmendation_engine.starting_five(boxscores_20_21, value, names=True)
     return [{'label': i, 'value': i} for i in players_team.keys()]
 
 @app.callback(
@@ -482,14 +501,18 @@ def update_image_repTeam(value):
     Output('teamRec-player-dropdown', 'children'),
     [Input('teamRec-starting5-dropdown', 'value'), Input('recommendation-type', 'value'), Input("checklist-columns", "value")])
 def selected_player(rep_player, rec_type, cols):  
+    weights = [7/10, 2/10, 1/10]
+    dist_m = 'L2'
+
     if 'PLAYER_AGE' in cols:
         sel_col = ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE' 'GP', 'GS', 'MIN']
         cols.remove('PLAYER_AGE')
     else:
         sel_col = ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'GP', 'GS', 'MIN']
-    stats_agg, _ = recommmendation_engine.aggregate_data(players_stats, [7/10, 2/10, 1/10], sel_col+cols)
+    stats_agg, _ = recommmendation_engine.aggregate_data(players_stats, w = weights, cols = sel_col+cols)
+
     #data_emb, emb, _, _, _ = recommmendation_engine.embeddings('umap', stats_agg, stats_agg_notTransformed)
-    sample_recommendation = recommmendation_engine.RecommendationEngine(stats_agg, rep_player, rec_type) # 'Similar'
+    sample_recommendation = recommmendation_engine.RecommendationEngine(stats_agg, rep_player, rec_type, distance_measure = dist_m, w = weights, cols_sel = sel_col+cols) # 'Similar'
     r = sample_recommendation.recommend()
     return r
 
@@ -520,9 +543,27 @@ def update_output(value):
     [State("checklist-columns", "options")],
 )
 def select_all_none(all_selected, options):
-    all_or_none = []
-    all_or_none = [option["value"] for option in options if all_selected]
-    return all_or_none
+    if len(all_selected) == 0:
+        return []
+    else:
+        attributes = []
+        if 'All' in all_selected:
+            for option in options:
+                attributes.append(option["value"])
+        if 'Off' in all_selected:
+            off_cols = ['FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'AST', 'PTS']
+            for option in options:
+                if option['value'] in off_cols:
+                    attributes.append(option["value"])
+            #attributes = [option["value"] for option in options if option['value'] in off_cols]
+        if 'Def' in all_selected:
+            def_cols = ['OREB', 'DREB', 'REB', 'STL', 'BLK', 'TOV', 'PF']
+            for option in options:
+                if option['value'] in def_cols:
+                    attributes.append(option["value"])
+            #attributes = attributes = [option["value"] for option in options if option['value'] in def_cols]
+    
+        return list(set(attributes))
 
 
 if __name__ == '__main__':
