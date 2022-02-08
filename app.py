@@ -14,7 +14,6 @@ from src.tabs import player, team, recommendation
 
 app = dash.Dash(__name__, title="NBA GM", external_stylesheets=[dbc.themes.LUX])
 
-
 # assume you have a "long-form" data frame
 # see https://plotly.com/python/px-arguments/ for more options
 
@@ -44,7 +43,6 @@ player_data = recommmendation_engine.get_players_data()
 team_data = recommmendation_engine.get_teams_data()
 
 # APP CALLBACKS
-
 @app.callback(
     [Output('playerselect-output-container', 'children'),
      Output('playerselect-name-container', 'children')],
@@ -266,13 +264,11 @@ def update_image_recPlayer(children):
     player_id = list(player_data[player_data['player_names'] == children]['id'])[0]
     return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png"
 
-
 @app.callback(
     Output('teamselect-capspace-graph', 'figure'),
     Input('teamselect-dropdown', 'value'))
 def update_output(value):
     return recommmendation_engine.visualize_capspace_team_plotly(value)
-
 
 
 if __name__ == '__main__':

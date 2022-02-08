@@ -1,4 +1,4 @@
-from src.utils_dash import _player_selector, _team_selector, _link_team_website, _team_full_name, _get_team_id
+from src.utils_dash import _team_selector
 from dash import dcc, html
 import dash_bootstrap_components as dbc
 
