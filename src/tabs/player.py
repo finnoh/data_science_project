@@ -23,6 +23,8 @@ player_info_card = html.Div(
     dbc.Container(
         [
             html.H2(id='playerselect-name-container', className="display-3"),
+            html.H4(id='playerselect-draft'),
+            html.H4(id='playerselect-bio'),
             html.Div(
                 [html.Div([html.Img(id='playerselect-image', style={'width': '100%'})],
                           style={'display': 'inline-block'}),
@@ -52,8 +54,7 @@ left_player = dbc.Col([player_info_card,
                        ], md=6)
 
 right_player = dbc.Col([dbc.Container([
-    dcc.Graph(id='hotzone-graph')]), dbc.Container([dcc.Graph(id='playerselect-graph1')])
-], md=6)
+    dcc.Graph(id='hotzone-graph'), dcc.Graph(id='playerselect-graph1'), dcc.Graph(id='playerselect-graph2')])], md=6)
 
 jumbotron_player = dbc.Row(
     [left_player, right_player],

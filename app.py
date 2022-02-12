@@ -1,13 +1,14 @@
 from hotzone import hotzone
 from dash.dependencies import Input, Output, State
-from src.utils_dash import _player_selector, _team_selector, _link_team_website, _team_full_name, _get_team_id, \
-    _get_mvp_id_team, _player_full_name, _mvp_descr_builder, draw_plotly_court
+from src.utils_dash import _player_selector, _player_full_name, _team_selector, _team_full_name, _get_team_id, \
+    _get_mvp_id_team, _mvp_descr_builder, draw_plotly_court, _link_team_website
 import dash
 import wikipediaapi
 from dash import dcc, html
 from dash.dependencies import Input, Output
 import plotly.express as px
-from src.get_data import get_clean_player_data, get_player_score
+import plotly.graph_objects as go
+from src.get_data import *
 import recommmendation_engine
 import dash_bootstrap_components as dbc
 from src.tabs import player, team, recommendation
@@ -101,14 +102,29 @@ def update_image_selTeam(value):
     [Output('playerselect-table', 'data'),
      Output('playerselect-table', 'columns'),
      Output('playerselect-graph1', 'figure'),
-     Output('playerselect-score', 'children')],
+     Output('playerselect-score', 'children'),
+     Output('playerselect-graph2', 'figure'),
+     Output('playerselect-draft', 'children'),
+     Output('playerselect-bio', 'children')],
 
     [Input('playerselect-dropdown', 'value')])
 def update_player(value):
     # make api call
-    df = get_clean_player_data(player_id=value)
+    data_all = get_clean_player_data(player_id=value)
     cols = ['SEASON_ID', 'PLAYER_AGE', 'GP', 'MIN', 'PTS', 'AST', 'REB', 'BLK']
-    df = df[cols]
+    df = data_all[cols]
+
+    weight = data_all['WEIGHT_KG'].values[0]
+    height = data_all['HEIGHT_METER'].values[0]
+    draft = data_all['DRAFT_NUMBER'].values[0]
+    draft_year = data_all['DRAFT_YEAR'].values[0]
+    draft_round = data_all['DRAFT_ROUND'].values[0]
+    previous = data_all['LAST_AFFILIATION'].values[0]
+
+    body = f'{weight} kg, {height} m'
+    drafted = f'At {draft} in round {draft_round} - {draft_year} \n ({previous})'
+
+    print([weight, height, draft])
 
     player_score = get_player_score(player_id=value)
 
@@ -116,11 +132,17 @@ def update_player(value):
     columns = [{"name": i, "id": i} for i in cols]
     data = df.to_dict('records')
 
+    df_season = get_season_data(player_id=value)
+    df_salary = get_player_salary(player_id=value)
+
     # get figure
-    fig = px.line(df, x="SEASON_ID", y="PTS")
+    fig = px.line(df_season, x="SEASON", y="coef_perc_rank", range_x=[2016, 2020], range_y=[0, 100])
     fig.update_layout(transition_duration=500, template="simple_white")
 
-    return data, columns, fig, [f'RAPM score of {player_score}']
+    fig2 = px.line(df_salary, x="SEASON", y="value", range_x=[2019, 2024])
+    fig2.update_layout(transition_duration=500, template="simple_white")
+
+    return data, columns, fig, [f'Overall Top {player_score} %'], fig2, body, drafted
 
 
 @app.callback(

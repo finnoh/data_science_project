@@ -3,6 +3,7 @@ import numpy as np
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import teamdashboardbylastngames
 
+
 def _player_selector():
     """ Helper for selecting a player with a selector
 
