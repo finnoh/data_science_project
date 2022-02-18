@@ -122,7 +122,41 @@ def get_player_score(player_id: str):
     """
     data = pd.read_csv("./data/season_prediction/player_scores_16_20.csv")
     data_player = data[data['PLAYER_ID'] == player_id]
-    return np.round(data_player['coef_perc_rank'].values[0], 2)
+    data_player['coef_perc_rank2'] = data_player['coef'].rank(ascending=False, pct=True) * 100
+    return np.round(data_player['coef_perc_rank2'].values[0], 2)
+
+def get_all_player_score():
+    """
+
+    :param player_id:
+    :return:
+    """
+    # read in data
+    data = pd.read_csv("./data/season_prediction/player_scores_16_20.csv")
+
+    # round
+    data['coef_perc_rank'] = np.round(data['coef_perc_rank'], 2)
+    data['coef'] = np.round(data['coef'], 2)
+
+    # sort
+    data = data.sort_values('coef_perc_rank', ascending=False)
+
+    # rank variables
+    data['coef_perc_rank2'] = np.round(data['coef'].rank(ascending=False, pct=True) * 100, 4)
+
+    data["CI_UPP_90"] = np.round(data["CI_UPP_90"], 2)
+    data["CI_LOW_90"] = np.round(data["CI_LOW_90"], 2)
+
+    data.loc[data['DRAFT_NUMBER'] == "Undrafted", "DRAFT_NUMBER"] = 999
+    data['DRAFT_NUMBER'] = data['DRAFT_NUMBER'].astype(float)
+
+    # select and rename
+    tmp = data[['coef_perc_rank2', 'DISPLAY_FIRST_LAST', 'coef', "CI_UPP_90", "CI_LOW_90", 'DRAFT_NUMBER', 'DRAFT_YEAR']]
+
+    tmp = tmp.rename(columns={'coef_perc_rank2': 'Top %', 'DISPLAY_FIRST_LAST': 'PLAYER','coef': 'Coefficient',
+                              "CI_UPP_90": 'CI Upper 90%', "CI_LOW_90": "CI Lower 90%", 'DRAFT_YEAR': 'Draft Year',
+                              'DRAFT_NUMBER': 'Draft Number'})
+    return tmp
 
 def get_season_data(player_id: str):
 
