@@ -9,7 +9,8 @@ import requests
 from tqdm import tqdm
 from os import listdir
 import time
-
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 def get_boxscores_per_season(season_id: str):
     """
@@ -50,12 +51,24 @@ def get_schedule_per_season(season_id: str):
 
     return schedule
 
+
+from nba_api.stats.endpoints import playercareerstats
+from nba_api.stats.static import teams
+from nba_api.stats.endpoints import commonplayerinfo
+
+
 def get_clean_player_data(player_id: str):
     """
 
     :param player_id: str, APIs player_id
     :return df: pd.DataFrame, contains a players career stats
     """
+    call_draft = commonplayerinfo.CommonPlayerInfo(player_id)
+    tmp_draft = pd.concat(call_draft.get_data_frames())
+    draft = tmp_draft.loc[~tmp_draft['DRAFT_YEAR'].isna()][
+        ['PERSON_ID', 'DISPLAY_FIRST_LAST', 'DRAFT_YEAR', 'DRAFT_ROUND', 'DRAFT_NUMBER', 'GREATEST_75_FLAG', 'HEIGHT',
+         'WEIGHT', 'LAST_AFFILIATION', 'POSITION']]
+
     # get a player
     call_player = playercareerstats.PlayerCareerStats(player_id=player_id, per_mode36="PerGame")
     df = pd.concat(call_player.get_data_frames())
@@ -87,7 +100,108 @@ def get_clean_player_data(player_id: str):
     # keep first observations - what exactly are those?
     df = df[~df.index.duplicated(keep='first')]
 
-    return df
+    df2 = pd.merge(df, draft, left_on='PLAYER_ID', right_on='PERSON_ID')
+
+    # convert height and weight
+
+    feet = df2['HEIGHT'].apply(lambda x: int(x.split('-')[0]))
+    inches = df2['HEIGHT'].apply(lambda x: int(x.split('-')[1]))
+
+    tot_inches = feet * 12 + inches
+    df2['HEIGHT_METER'] = np.round(tot_inches * 0.0254, 2)
+
+    df2['WEIGHT_KG'] = np.round(df2['WEIGHT'].astype(int) * 0.453592, 2)
+
+    return df2
+
+def get_player_score(player_id: str):
+    """
+
+    :param player_id:
+    :return:
+    """
+    data = pd.read_csv("./data/season_prediction/player_scores_16_20.csv")
+    data_player = data[data['PLAYER_ID'] == player_id]
+    data_player['coef_perc_rank2'] = data_player['coef'].rank(ascending=False, pct=True) * 100
+    return np.round(data_player['coef_perc_rank2'].values[0], 2)
+
+def get_all_player_score():
+    """
+
+    :param player_id:
+    :return:
+    """
+    # read in data
+    data = pd.read_csv("./data/season_prediction/player_scores_16_20.csv")
+
+    # round
+    data['coef_perc_rank'] = np.round(data['coef_perc_rank'], 2)
+    data['coef'] = np.round(data['coef'], 2)
+
+    # sort
+    data = data.sort_values('coef_perc_rank', ascending=False)
+
+    # rank variables
+    data['coef_perc_rank2'] = np.round(data['coef'].rank(ascending=False, pct=True) * 100, 4)
+
+    data["CI_UPP_90"] = np.round(data["CI_UPP_90"], 2)
+    data["CI_LOW_90"] = np.round(data["CI_LOW_90"], 2)
+
+    data.loc[data['DRAFT_NUMBER'] == "Undrafted", "DRAFT_NUMBER"] = 999
+    data['DRAFT_NUMBER'] = data['DRAFT_NUMBER'].astype(float)
+
+    # select and rename
+    tmp = data[['coef_perc_rank2', 'DISPLAY_FIRST_LAST', 'coef', "CI_UPP_90", "CI_LOW_90", 'DRAFT_NUMBER', 'DRAFT_YEAR']]
+
+    tmp = tmp.rename(columns={'coef_perc_rank2': 'Top %', 'DISPLAY_FIRST_LAST': 'PLAYER','coef': 'Coefficient',
+                              "CI_UPP_90": 'CI Upper 90%', "CI_LOW_90": "CI Lower 90%", 'DRAFT_YEAR': 'Draft Year',
+                              'DRAFT_NUMBER': 'Draft Number'})
+    return tmp
+
+def get_season_data(player_id: str):
+
+    data = pd.read_csv("./data/season_prediction/player_season_scores.csv")
+    data_player = data[data['PLAYER_ID'] == player_id]
+    tmp = data_player.sort_values(['SEASON_ID'])
+    tmp['SEASON'] = data_player['SEASON_ID'].apply(lambda x: int(x.split('-')[0]))
+
+    return tmp
+
+def last_four_seasons(player_id, season_scores):
+    """ Visualize players performance over last four seasons
+    """
+
+    tmp = season_scores[season_scores['PLAYER_ID'] == player_id]
+    tmp = tmp.sort_values('SEASON_ID')
+    tmp = tmp.reset_index()
+
+    sns.lineplot(data=tmp, x="SEASON_ID", y="coef_perc_rank", ci=90)
+
+    plt.title(tmp['DISPLAY_FIRST_LAST'].values[0])
+    plt.show()
+
+def get_player_salary(player_id: str):
+
+    data = pd.read_csv("./data/data_assets/players_salaries_hist.csv")
+    data = data.drop(['Unnamed: 0'], axis=1)
+    tmp = pd.melt(data, id_vars=['id', 'player_names'])
+    tmp['SEASON'] = tmp['variable'].apply(lambda x: int(x.split('/')[0]))
+    tmp2 = tmp[tmp['id'] == player_id]
+
+    print(tmp2)
+
+    return tmp2
+
+
+def get_player_score(player_id: str):
+    """
+
+    :param player_id:
+    :return:
+    """
+    data = pd.read_csv("full_player_rating.csv")
+    data_player = data[data['PLAYER_ID'] == player_id]
+    return np.round(data_player['SCORE'].values[0], 2)
 
 def get_player_score(player_id: str):
     """

@@ -733,7 +733,6 @@ class RecommendationEngine:
         plt.ylabel('Silhouette score') 
         plt.title('Silhouette analysis For Optimal k')
         plt.show()
-
         plt.plot(range_n_clusters,Sum_of_squared_distances,'bx-')
         plt.xlabel('Values of K') 
         plt.ylabel('Sum of squared distances/Inertia') 
