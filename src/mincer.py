@@ -200,12 +200,13 @@ def plot_mincer(df_plot, logarithm: bool=False):
                 marker=dict(
                     colorscale='Viridis',
                     color=df_plot["Difference"],
+                    size=df_plot["GS"],
                     colorbar={"title": "Difference"},
                     line={"color": "#444"},
                     reversescale=False,
-                    sizeref=45,
+                    sizeref=3,
                     sizemode="diameter",
-                    opacity=0.8
+                    opacity=0.5
                 )
             )
         ])
@@ -219,12 +220,13 @@ def plot_mincer(df_plot, logarithm: bool=False):
                     marker=dict(
                         colorscale='viridis',
                         color=df_plot["Difference"],
+                        size=df_plot["GS"],
                         colorbar={"title": "Difference"},
                         line={"color": "#444"},
                         reversescale=False,
-                        sizeref=45,
+                        sizeref=3,
                         sizemode="diameter",
-                        opacity=0.8
+                        opacity=0.5
                 )
                 )])
 
