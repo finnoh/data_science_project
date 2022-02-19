@@ -1,6 +1,5 @@
 from hotzone import hotzone
 from dash.dependencies import Input, Output, State
-<<<<<<< HEAD
 from src.utils_dash import _player_selector, _player_full_name, _team_selector, _team_full_name, _get_team_id, \
     _get_mvp_id_team, _mvp_descr_builder, draw_plotly_court, _link_team_website
 from src.mincer import *
@@ -14,22 +13,8 @@ from src.get_data import *
 import recommmendation_engine
 import dash_bootstrap_components as dbc
 from src.tabs import player, team, recommendation, mincer_tab
-=======
-from src.utils_dash import _player_selector, _team_selector, _link_team_website, _team_full_name, _get_team_id, \
-    _get_mvp_id_team, _player_full_name, _mvp_descr_builder, draw_plotly_court
-import dash
-import wikipediaapi
-from dash import dcc, html
-from dash.dependencies import Input, Output
-import plotly.express as px
-from src.get_data import get_clean_player_data, get_player_score
-import recommmendation_engine
-import dash_bootstrap_components as dbc
-from src.tabs import player, team, recommendation
->>>>>>> e609c77aab190b8ed1bc2257c4cd59b8d0caff68
 
 app = dash.Dash(__name__, title="NBA GM", external_stylesheets=[dbc.themes.LUX])
-
 
 # assume you have a "long-form" data frame
 # see https://plotly.com/python/px-arguments/ for more options
@@ -39,7 +24,6 @@ app.layout = html.Div(children=[
     dcc.Tabs(id='tabs-example', value='tab-1', children=[
         dcc.Tab(label='Player', value='tab-1', children=[
             player.jumbotron_player, html.Hr(className="my-2"), player.top_players, player.draft_pick_performance
-            player.jumbotron_player
         ]),
         dcc.Tab(label='Team', value='tab-5', children=[team.jumbotron
                                                        ]),
@@ -48,7 +32,6 @@ app.layout = html.Div(children=[
             html.Div([recommendation.cards_rec, recommendation.dim_red])
         ]),
         dcc.Tab(label="Salary", value='tab-4', children=[mincer_tab.mincer])
-        ])
     ], colors={
         "border": "white",
         "primary": "#17408b",
@@ -61,11 +44,6 @@ player_selector = _player_selector()
 team_selector = _team_selector()
 player_data = recommmendation_engine.get_players_data()
 team_data = recommmendation_engine.get_teams_data()
-<<<<<<< HEAD
-=======
-
-# APP CALLBACKS
->>>>>>> e609c77aab190b8ed1bc2257c4cd59b8d0caff68
 
 # APP CALLBACKS
 @app.callback(
@@ -121,7 +99,6 @@ def update_image_selTeam(value):
     team_abb = list(player_data[player_data['id'] == value]['team'])[0]
     return f"http://i.cdn.turner.com/nba/nba/.element/img/1.0/teamsites/logos/teamlogos_500x500/{team_abb.lower()}.png"
 
-<<<<<<< HEAD
 @app.callback(
     [Output('playerselect-topplayer', 'data'),
     Output('playerselect-topplayer', 'columns')],
@@ -155,26 +132,18 @@ def pick_hist(value):
 
 
 
-=======
->>>>>>> e609c77aab190b8ed1bc2257c4cd59b8d0caff68
 
 @app.callback(
     [Output('playerselect-table', 'data'),
      Output('playerselect-table', 'columns'),
      Output('playerselect-graph1', 'figure'),
-<<<<<<< HEAD
      Output('playerselect-score', 'children'),
      Output('playerselect-graph2', 'figure'),
      Output('playerselect-draft', 'children'),
      Output('playerselect-bio', 'children')],
-=======
-     Output('playerselect-score', 'children')],
->>>>>>> e609c77aab190b8ed1bc2257c4cd59b8d0caff68
-
     [Input('playerselect-dropdown', 'value')])
 def update_player(value):
     # make api call
-<<<<<<< HEAD
     data_all = get_clean_player_data(player_id=value)
     cols = ['SEASON_ID', 'PLAYER_AGE', 'GP', 'MIN', 'PTS', 'AST', 'REB', 'BLK']
     df = data_all[cols]
@@ -190,11 +159,6 @@ def update_player(value):
     drafted = f'At {draft} in round {draft_round} - {draft_year} \n ({previous})'
 
     print([weight, height, draft])
-=======
-    df = get_clean_player_data(player_id=value)
-    cols = ['SEASON_ID', 'PLAYER_AGE', 'GP', 'MIN', 'PTS', 'AST', 'REB', 'BLK']
-    df = df[cols]
->>>>>>> e609c77aab190b8ed1bc2257c4cd59b8d0caff68
 
     player_score = get_player_score(player_id=value)
 
@@ -206,7 +170,6 @@ def update_player(value):
     df_salary = get_player_salary(player_id=value)
 
     # get figure
-<<<<<<< HEAD
     fig = px.line(df_season, x="SEASON", y="coef_perc_rank", range_x=[2016, 2020], range_y=[0, 100])
     fig.update_layout(transition_duration=500, template="simple_white")
 
@@ -214,12 +177,6 @@ def update_player(value):
     fig2.update_layout(transition_duration=500, template="simple_white")
 
     return data, columns, fig, [f'Overall Top {player_score} %'], fig2, body, drafted
-=======
-    fig = px.line(df, x="SEASON_ID", y="PTS")
-    fig.update_layout(transition_duration=500, template="simple_white")
-
-    return data, columns, fig, [f'RAPM score of {player_score}']
->>>>>>> e609c77aab190b8ed1bc2257c4cd59b8d0caff68
 
 
 @app.callback(
@@ -355,16 +312,6 @@ def selected_player(rep_player, rec_type):
 #    Input('teamRec-player-dropdown', 'children'))
 # def print_recommended_player(value):
 #    return f"{value}"
-<<<<<<< HEAD
-=======
-
-@app.callback(
-    Output('playerRec-image', 'src'),
-    Input('teamRec-player-dropdown', 'children'))
-def update_image_recPlayer(children):
-    player_id = list(player_data[player_data['player_names'] == children]['id'])[0]
-    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png"
->>>>>>> e609c77aab190b8ed1bc2257c4cd59b8d0caff68
 
 @app.callback(
     Output('playerRec-image', 'src'),
@@ -380,7 +327,6 @@ def update_output(value):
     return recommmendation_engine.visualize_capspace_team_plotly(value)
 
 
-<<<<<<< HEAD
 @app.callback([
     Output('mincer-output-container', 'children'), Output('mincer-output-graph', 'figure')],
     [Input('mincer-model-dropdown', 'value'), Input('mincer-log-switch', 'on')]
@@ -444,8 +390,6 @@ def display_hover(hoverData):
 
     return True, bbox, children
 
-=======
->>>>>>> e609c77aab190b8ed1bc2257c4cd59b8d0caff68
 
 if __name__ == '__main__':
     app.run_server(debug=True)
