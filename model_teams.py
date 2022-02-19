@@ -43,7 +43,7 @@ for i, player in tqdm(enumerate(df_boxscores['PLAYER_ID'].unique())):
     if i % 10 == 0:
         time.sleep(5)
 players_info = pd.DataFrame(players_info)
-players_info.to_csv('playoffs_players.csv', index = False)
+players_info.to_csv('data/rec_engine/playoffs_players.csv', index = False)
 
 '''
 def get_playoff_boxscores(season_str: str):

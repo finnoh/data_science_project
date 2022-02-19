@@ -1,0 +1,13 @@
+[Unit]
+Description=Data Science Project Dashboard via uWSGI
+After=network.target
+
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/data_science_project
+Environment="PATH=/home/ubuntu/data_science_project/env/bin"
+ExecStart=/home/ubuntu/data_science_project/env/bin/uwsgi --ini app.ini
+
+[Install]
+WantedBy=multi-user.target

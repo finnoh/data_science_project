@@ -1,0 +1,9 @@
+server {
+    listen 80;
+    server_name 193.196.52.228;
+
+    location / {
+        include uwsgi_params;
+        uwsgi_pass unix:/home/ubuntu/data_science_project/app.sock;
+    }
+}
