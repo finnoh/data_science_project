@@ -23,8 +23,11 @@ player_info_card = html.Div(
     dbc.Container(
         [
             html.H2(id='playerselect-name-container', className="display-3"),
+<<<<<<< HEAD
             html.H4(id='playerselect-draft'),
             html.H4(id='playerselect-bio'),
+=======
+>>>>>>> e609c77aab190b8ed1bc2257c4cd59b8d0caff68
             html.Div(
                 [html.Div([html.Img(id='playerselect-image', style={'width': '100%'})],
                           style={'display': 'inline-block'}),
@@ -54,11 +57,17 @@ left_player = dbc.Col([player_info_card,
                        ], md=6)
 
 right_player = dbc.Col([dbc.Container([
+<<<<<<< HEAD
     dcc.Graph(id='hotzone-graph'), dcc.Graph(id='playerselect-graph1'), dcc.Graph(id='playerselect-graph2')])], md=6)
+=======
+    dcc.Graph(id='hotzone-graph')]), dbc.Container([dcc.Graph(id='playerselect-graph1')])
+], md=6)
+>>>>>>> e609c77aab190b8ed1bc2257c4cd59b8d0caff68
 
 jumbotron_player = dbc.Row(
     [left_player, right_player],
     className="align-items-md-stretch"
+<<<<<<< HEAD
 )
 
 top_players = dbc.Row([dash_table.DataTable(id='playerselect-topplayer',
@@ -77,3 +86,6 @@ draft_pick_performance = html.Div([
     dcc.RangeSlider(min=1, max=60, step=1, value=[5, 15], id='pick'),
     dcc.Graph(id="graph")
 ])
+=======
+)
+>>>>>>> e609c77aab190b8ed1bc2257c4cd59b8d0caff68

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 from src.utils_dash import _team_selector
+=======
+from src.utils_dash import _player_selector, _team_selector, _link_team_website, _team_full_name, _get_team_id
+>>>>>>> e609c77aab190b8ed1bc2257c4cd59b8d0caff68
 from dash import dcc, html
 import dash_bootstrap_components as dbc
 

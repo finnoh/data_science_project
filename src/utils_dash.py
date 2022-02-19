@@ -307,4 +307,8 @@ def draw_plotly_court(fig, fig_width=600, margins=10):
 
         ]
     )
+<<<<<<< HEAD
     return fig
+=======
+    return fig
+>>>>>>> e609c77aab190b8ed1bc2257c4cd59b8d0caff68
