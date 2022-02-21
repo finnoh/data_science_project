@@ -2,6 +2,7 @@ from dash import dcc, html
 from dash import dash_table
 from src.utils_dash import _player_selector
 import dash_bootstrap_components as dbc
+from src.tabs.mincer_tab import mincer
 
 player_selector = _player_selector()
 
@@ -15,7 +16,7 @@ player_acc = html.Div(
                 html.Div(id='playerselect-output-container-wiki'), title="Player-Bio"
             )
         ],
-        flush=False,
+        flush=False, start_collapsed=True
     )
 )
 
@@ -77,3 +78,17 @@ draft_pick_performance = html.Div([
     dcc.RangeSlider(min=1, max=60, step=1, value=[5, 15], id='pick'),
     dcc.Graph(id="graph")
 ])
+
+player_mincer_coefs = html.Div(
+    dbc.Accordion(
+        [
+            dbc.AccordionItem(
+                [top_players, draft_pick_performance], title="Top Players and Draft Picks"
+            ),
+            dbc.AccordionItem(
+                [mincer], title="Mincer - Salary Evaluation"
+            )
+        ],
+        flush=False, start_collapsed=True
+    )
+)

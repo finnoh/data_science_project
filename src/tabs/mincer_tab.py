@@ -1,5 +1,5 @@
 from dash import dcc, html
-#import dash_daq as daq
+import dash_daq as daq
 from dash import dash_table
 from src.mincer import *
 import dash_bootstrap_components as dbc
@@ -12,8 +12,8 @@ mincer = html.Div([dbc.Container([dcc.Dropdown(
     ],
     value='ols', id="mincer-model-dropdown"
 
-#), daq.BooleanSwitch(id='mincer-log-switch', on=False, label="Logarithm?", labelPosition="top")]),
-)]),
+), daq.BooleanSwitch(id='mincer-log-switch', on=False, label="Logarithm?", labelPosition="top")]),
+#)]),
 
     dbc.Container([
         dcc.Loading([dcc.Graph(id='mincer-output-graph', clear_on_unhover=True)], fullscreen=False, type='dot',

@@ -41,6 +41,7 @@ from dash.dependencies import Input, Output, State
 from src.utils_dash import _player_selector, _player_full_name, _team_selector, _team_full_name, _get_team_id, \
     _get_mvp_id_team, _mvp_descr_builder, draw_plotly_court, _link_team_website
 from src.mincer import *
+from src.prediction import *
 import dash
 import wikipediaapi
 from dash import dcc, html, no_update
@@ -53,6 +54,7 @@ import dash_bootstrap_components as dbc
 from src.tabs import player, team, recommendation, mincer_tab, welcome
 #import json
 import io
+from src.tabs import player, team, recommendation, mincer_tab, prediction_tab
 
 
 # assume you have a "long-form" data frame
@@ -74,12 +76,11 @@ app.layout = html.Div(children=[
     dcc.Tabs(id='tabs', value='tab-1', children=[
         dcc.Tab(label="Welcome", value='tab-1', children=[welcome.welcome_tab]),
         dcc.Tab(label='Player', value='tab-2', children=[
-            player.jumbotron_player, html.Hr(className="my-2"), player.top_players, player.draft_pick_performance
+            player.jumbotron_player, player.player_mincer_coefs
         ]),
-        dcc.Tab(label='Team', value='tab-3', children=[team.jumbotron
-                                                       ]),
+        dcc.Tab(label='Team', value='tab-3', children=[team.jumbotron]),
         dcc.Tab(label='Recommendation', value='tab-4', children =[recommendation.recommendation_tab]),
-        dcc.Tab(label="Salary", value='tab-5', children=[mincer_tab.mincer])
+        dcc.Tab(label="Season Prediction", value='tab-5', children=[prediction_tab.prediction])
     ], colors={
         "border": "white",
         "primary": "#17408b",
@@ -166,6 +167,9 @@ def update_player(value):
 
     body = f'{weight} kg, {height} m'
     drafted = f'At {draft} in round {draft_round} - {draft_year} \n ({previous})'
+
+    print([weight, height, draft])
+
     player_score = get_player_score(player_id=value)
 
     # get objects
@@ -605,11 +609,11 @@ def selected_player(team, rec_type, dist_m, cols_all, cols_off, cols_off2, cols_
         b4 = None
         pos = 4
     elif b5 is not None:
-        rep_player = list(players_team.keys())[2]  
+        rep_player = list(players_team.keys())[2]
         b5 = None
         pos = 5
     else:
-        rep_player = list(players_team.keys())[3] 
+        rep_player = list(players_team.keys())[3]
         pos = 1
         
     cols = cols_all + cols_off + cols_off2 + cols_def
@@ -770,7 +774,7 @@ def update_image_recPlayer(player, pos):
     cap4 = ''
     cap5 = ''
 
-    output_str = f'{player} ({player_team}, {player_pos})' 
+    output_str = f'{player} ({player_team}, {player_pos})'
 
     if pos == 1:
         img1 = f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png"
@@ -924,7 +928,7 @@ def select_all_none(all_selected, options):
                 if option['value'] in def_cols:
                     attributes.append(option["value"])
             #attributes = attributes = [option["value"] for option in options if option['value'] in def_cols]
-    
+
         return list(set(attributes))
 '''
 
@@ -933,7 +937,7 @@ def select_all_none(all_selected, options):
     Output('rec-dimreduction-graph1', 'figure'),
     [Input('rec-dimreduction-type', 'value'), Input('rec-dimreduction-dim', 'value'), Input('players-recommended', 'data')])
 def get_emb(dim_type, dim, players):
-    stats_agg, stats_agg_notTransformed = recommmendation_engine.aggregate_data(players_stats, w = [7/10, 2/10, 1/10]) 
+    stats_agg, stats_agg_notTransformed = recommmendation_engine.aggregate_data(players_stats, w = [7/10, 2/10, 1/10])
     players_stats_emb, _, positions, data_names, player_stats = recommmendation_engine.embeddings(dim_type, stats_agg, stats_agg_notTransformed, int(dim)) # player
     name_emb = {'spectral': 'Sepectral Embedding', 'tsne': 'TSNE', 'umap': 'UMAP', 'pca': 'PCA'}
 
@@ -1102,6 +1106,80 @@ def display_hover(hoverData):
     ]
 
     return True, bbox, children
+
+@app.callback(
+    [Output("prediction-output-graph_trade", "figure"),
+     Output("prediction-output-graph2_trade", "figure")],
+    [Input('prediction-submit_trade', "n_clicks"),
+     Input('prediction-teamRec-starting5-dropdown', 'value'),
+     Input('prediction-teamRec-starting5-dropdown2', 'value')])
+def run_season_predictionb_trade(n_clicks, player_in, player_out):
+
+    df_schedule, df_boxscores, scores = load_scores_data()
+
+    df, X_train, y_train, X_test, y_test, df_model_train, df_model_test, df_int_train, df_int_test = train_test_split(df_schedule,
+                                                                                                                      df_boxscores,
+                                                                                                                      scores,
+                                                                                                                      seasons=[22021, 22020, 22019, 22018, 22017, 22016],
+                                                                                                                      model_name="simulation")
+
+    df_model_test_trade, out_team_id, in_team_id = train_test_split_trade(player_in=player_in, player_out=player_out, df=df,
+                                                                              scores=scores, last_train_season=22020)
+
+    model, fitted = get_bambi_model(model_name="simulation")
+
+    mean_plus_minus_pred, mean_plus_minus_trade, sigma_plus_minus_pred, sigma_plus_minus_trade = model_fit_predict(model, fitted, df_model_test, df_model_test_trade)
+    performance = simulate_season(mean=mean_plus_minus_trade, sigma=sigma_plus_minus_trade, df_int_test=df_int_test, n_sim=10)
+    fig, fig2 = plot_whole_league(performance)
+
+    return fig, fig2
+
+@app.callback(
+    [Output("prediction-output-graphb_trade", "figure"),
+     Output("prediction-output-graph2b_trade", "figure")],
+    [Input('prediction-submit_trade', "n_clicks"),
+     Input('prediction-teamRec-starting5-dropdown', 'value'),
+     Input('prediction-teamRec-starting5-dropdown2', 'value')])
+def run_season_predictionb_trade(n_clicks, player_in, player_out):
+
+    df_schedule, df_boxscores, scores = load_scores_data()
+
+    df, X_train, y_train, X_test, y_test, df_model_train, df_model_test, df_int_train, df_int_test = train_test_split(df_schedule,
+                                                                                                                      df_boxscores,
+                                                                                                                      scores,
+                                                                                                                      seasons=[22021, 22020, 22019, 22018, 22017, 22016],
+                                                                                                                      model_name="simulation")
+
+    df_model_test_trade, out_team_id, in_team_id = train_test_split_trade(player_in=player_in, player_out=player_out, df=df,
+                                                                              scores=scores, last_train_season=22020)
+
+    model, fitted = get_bambi_model(model_name="simulation")
+
+    mean_plus_minus_pred, mean_plus_minus_trade, sigma_plus_minus_pred, sigma_plus_minus_trade = model_fit_predict(model, fitted, df_model_test, df_model_test_trade)
+    performance = simulate_season(mean=mean_plus_minus_trade, sigma=sigma_plus_minus_trade, df_int_test=df_int_test, n_sim=10)
+    fig, fig2 = plot_whole_league(performance)
+
+    return fig, fig2
+
+####
+
+@app.callback(
+    Output('prediction-teamRep-image', 'src'),
+    [Input('prediction-teamRec-select-dropdown', 'value')])
+def update_image_repTeam(value):
+    return f"http://i.cdn.turner.com/nba/nba/.element/img/1.0/teamsites/logos/teamlogos_500x500/{value.lower()}.png"
+
+@app.callback(
+    Output('prediction-playerRep-image', 'src'),
+    [Input('prediction-teamRec-starting5-dropdown', 'value')])
+def update_image_src(value):
+    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(value)}.png"
+
+@app.callback(
+    Output('prediction-playerRep-image2', 'src'),
+    [Input('prediction-teamRec-starting5-dropdown2', 'value')])
+def update_image_src(value):
+    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(value)}.png"
 
 
 if __name__ == '__main__':
