@@ -361,7 +361,9 @@ def update_output(value):
         columns=[{'name': i, 'id': i} for i in result_table.columns if i != 'id'],
         #tooltip_header={i:tooltip_columns[i] for i in list(result_table.columns) if i != 'id'},
         sort_action="native",
-        style_cell={'minWidth': '100px'}
+        style_cell={'minWidth': '75px'},
+        style_table={'overflowX': 'auto', 'minWidth': '100%'},
+        fixed_columns = {'headers':True, 'data':1},
     )
 
     return dt
@@ -435,7 +437,7 @@ def get_starting_five(team, predicted_salaries):
         pred_salary = '${:,.2f}'.format(pred_salary)
         c = 'green'
 
-    result_salary = html.Div([html.Div('Mincer Analysis:', style = {'margin-right': '5px'}),
+    result_salary = html.Div([html.Div('Mincer Comp.:', style = {'margin-right': '5px'}),
                               html.Div(pred_salary, style = {"color": c})], style = {'display':'flex'})
 
     return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})", result_salary
@@ -462,7 +464,7 @@ def get_starting_five(team, predicted_salaries):
         pred_salary = '${:,.2f}'.format(pred_salary)
         c = 'green'
 
-    result_salary = html.Div([html.Div('Mincer Analysis:', style = {'margin-right': '5px'}),
+    result_salary = html.Div([html.Div('Mincer Comp.:', style = {'margin-right': '5px'}),
                               html.Div(pred_salary, style = {"color": c})], style = {'display':'flex'})
     return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})", result_salary
 
@@ -488,7 +490,7 @@ def get_starting_five(team, predicted_salaries):
         pred_salary = '${:,.2f}'.format(pred_salary)
         c = 'green'
 
-    result_salary = html.Div([html.Div('Mincer Analysis:', style = {'margin-right': '5px'}),
+    result_salary = html.Div([html.Div('Mincer Comp.:', style = {'margin-right': '5px'}),
                               html.Div(pred_salary, style = {"color": c})], style = {'display':'flex'})
     return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})", result_salary
 
@@ -514,7 +516,7 @@ def get_starting_five(team, predicted_salaries):
         pred_salary = '${:,.2f}'.format(pred_salary)
         c = 'green'
 
-    result_salary = html.Div([html.Div('Mincer Analysis:', style = {'margin-right': '5px'}),
+    result_salary = html.Div([html.Div('Mincer Comp.:', style = {'margin-right': '5px'}),
                               html.Div(pred_salary, style = {"color": c})], style = {'display':'flex'})
     return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})", result_salary
 
@@ -709,7 +711,9 @@ def selected_player(team, rec_type, dist_m, cols_all, cols_off, cols_off2, cols_
             style_data_conditional=recommendation.highlight_max_col(result_table),
             tooltip_header={i:tooltip_columns[i] for i in list(result_table.columns) if i != 'id'},
             sort_action="native",
-            style_cell={'minWidth': '100px'}
+            style_cell={'minWidth': '100px'},
+            style_table={'overflowX': 'auto', 'minWidth': '100%'},
+            fixed_columns = {'headers':True, 'data':1},
         )
 
     players_plot = list(result_table['player'])

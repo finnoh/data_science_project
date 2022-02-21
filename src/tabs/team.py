@@ -25,7 +25,7 @@ offcanvas = html.Div(
 
 col_teamname = dbc.Col(html.Div(
     [html.H2(id='teamselect-output-container',
-             className="display-3", style={'margin': 'auto', 'width': '100%', 'display': 'inline-block'}), offcanvas]),
+             className="display-3", style={'margin': 'auto', 'width': '100%', 'display': 'inline-block'})]),
     md=9)
 
 col_logo = dbc.Col(html.Div(
@@ -57,8 +57,9 @@ left_jumbotron = dbc.Col([dbc.Row([col_teamname, col_logo], className="align-ite
                                             i, 1]} for i, team in
                                        enumerate(
                                            team_selector.label.unique())],
-                              value='ATL'
-                          ), html.Hr(className="my-2"),
+                              value='ATL'), 
+                          offcanvas,
+                          html.Hr(className="my-2"),
                           dbc.Container([
                               dcc.Graph(id='teamselect-capspace-graph')
                           ])], md=6, className="h-100 p-5 bg-light border rounded-3")
