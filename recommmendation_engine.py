@@ -22,6 +22,7 @@ from nba_api.stats.endpoints import commonplayerinfo
 from nba_api.stats.static import teams
 from nba_api.stats.endpoints import playercareerstats
 
+pd.options.mode.chained_assignment = None
 
 def get_players_data():
     return pd.read_csv('players_data.csv').sort_values(by=['id']).reset_index(drop = True)
@@ -31,6 +32,9 @@ def get_players_salary():
 
 def get_players_stats():
     return pd.read_csv('playercareerstats.csv').sort_values(by=['PLAYER_ID'])
+
+def get_physical_attributes():
+    return pd.read_csv('data/rec_engine/further_attributes.csv')
 
 def get_teams_data():
     return pd.read_csv('teams_data.csv')
@@ -46,11 +50,20 @@ def get_boxscores(season):
 def get_playoffs(season):
     return pd.read_csv(f'data/season_prediction/playoffs_{season}.csv')
 
+def get_player_scores():
+    return pd.read_csv('data/season_prediction/player_season_scores.csv')
+
+def get_2k_ratings():
+    return pd.read_csv('data/rec_engine/nba2k_ratings_adj.csv')
+
 #players_stats_agg = pd.read_csv('playercareerstats_agg.csv').sort_values(by=['PLAYER_ID']) # gewichtete Durchschnitte der letzten 3 Saisons: 1/3, 2/3, 3/3
 
 players_data = get_players_data()
 players_salaries = get_players_salary()
 players_stats = get_players_stats()
+players_physical = get_physical_attributes()
+players_scores = get_player_scores()
+players_nba2k = get_2k_ratings()
 teams_data = get_teams_data()
 teams_salaries = get_teams_salaries()
 
@@ -70,20 +83,24 @@ boxscores_14_15 = get_boxscores('14_15')
 playoffs_players = pd.read_csv('data/rec_engine/playoffs_players.csv', dtype={'PLAYER_ID': str})
 playoffs_boxscores = pd.read_csv('data/rec_engine/playoffs_boxscores.csv', dtype={'SEASON': str, 'PLAYER_ID': str}) # adjust in model_teams.py
 
-
 ## Optional: change weights for aggregating seasonal data
 
 def combine_seasons(players_stats, player_id, weights, seasons):
     df = players_stats[players_stats['PLAYER_ID'] == player_id]
     
     season_0 = df[df['SEASON_ID'] == seasons[0]]
+
+
+    #print(season_0.head())
+    #print(season_0.columns)
+
     if season_0.shape[0] == 0:
         season_0 = pd.DataFrame(np.zeros((1, len(df.columns) -6)))
     elif season_0.shape[0] > 1:
         season_0 = season_0[season_0['TEAM_ABBREVIATION'] == 'TOT'].iloc[:,6:] * weights[0]
     else:
         season_0 = season_0.iloc[:,6:] * weights[0] #* 1/2
-  
+
     season_1 = df[df['SEASON_ID'] == seasons[1]]
     if season_1.shape[0] == 0:
         season_1 = pd.DataFrame(np.zeros((1, len(df.columns) -6)))
@@ -117,7 +134,7 @@ def combine_seasons(players_stats, player_id, weights, seasons):
     dict_final = dict(df_final.iloc[0])
     return dict_final
 
-def aggregate_data(players_stats, seasons = ['2020-21', '2019-20', '2018-19'], w = [7/10, 2/10, 1/10], cols = None, norm = True, current_season = True):
+def aggregate_data(players_stats, seasons = ['2020-21', '2019-20', '2018-19'], w = [7/10, 2/10, 1/10], cols = None, rec_type = 'Similar', norm = True, current_season = True):
     players_stats = players_stats[(players_stats['SEASON_ID'] == seasons[0]) | 
                                   (players_stats['SEASON_ID'] == seasons[1]) | 
                                   (players_stats['SEASON_ID'] == seasons[2])].reset_index().drop(columns=['index'])
@@ -127,11 +144,13 @@ def aggregate_data(players_stats, seasons = ['2020-21', '2019-20', '2018-19'], w
     col_div = ['MIN', 'FGM', 'FGA', 'FG3M', 'FG3A', 'FTM', 'FTA', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS']
 
     if cols is not None:
-        players_stats = players_stats[cols]    
-        col_idx =  [list(players_stats.columns).index(i) for i in col_div if i in cols]
+        cols_adapted = [x for x in cols if x not in ['EXPERIENCE', 'HEIGHT', 'WEIGHT', 'Playmaking', 'Athleticism', 'Score']]
+        players_stats = players_stats[cols_adapted]    
+        col_idx =  [list(players_stats.columns).index(i) for i in col_div if i in cols_adapted]
 
     else:
         col_idx =  [list(players_stats.columns).index(i) for i in col_div]
+        cols = ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'EXPERIENCE', 'HEIGHT', 'WEIGHT', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'Playmaking', 'Athleticism', 'Score']
 
     for i in range(players_stats.shape[0]):
         n_min = players_stats["MIN"][i] #  per 'GP' or per 'MIN'?
@@ -145,7 +164,43 @@ def aggregate_data(players_stats, seasons = ['2020-21', '2019-20', '2018-19'], w
         pass
     player_stats_agg_notTransformed = [x for x in player_stats_agg_notTransformed if x != 'NA']
     player_stats_agg_notTransformed = pd.DataFrame(player_stats_agg_notTransformed).sort_values(by=['PLAYER_ID']).reset_index(drop = True)
-    
+
+    # join further attributes
+    if current_season:
+        season_df = players_physical[players_physical['Season'] == 2020]
+       
+        player_scores = []
+        player_playmaking = []
+        player_athleticism = []
+        for p_id in list(player_stats_agg_notTransformed['PLAYER_ID'].unique()):
+            try:
+                player_scores.append(list(players_scores[(players_scores['PLAYER_ID'] == p_id) & (players_scores['SEASON_ID'] == '2020-21')]['coef'])[0])
+                p_name = list(players_data[players_data['id'] == p_id]['player_names'])[0]
+                player_playmaking.append(list(players_nba2k[players_nba2k['player'] == p_name]['playmaking'])[0])
+                player_athleticism.append(list(players_nba2k[players_nba2k['player'] == p_name]['athleticism'])[0])
+            except: #202691, 1627782, 1628371, 1628380
+                player_scores.append(0)
+                p_name = list(players_data[players_data['id'] == p_id]['player_names'])[0]
+                player_playmaking.append(list(players_nba2k[players_nba2k['player'] == p_name]['playmaking'])[0])
+                player_athleticism.append(list(players_nba2k[players_nba2k['player'] == p_name]['athleticism'])[0])
+        #player_stats_agg_notTransformed.insert(7, "Score", player_scores)
+
+        if rec_type == 'Similar':
+            if 'Playmaking' in cols:
+                player_stats_agg_notTransformed.insert(7, "Playmaking", player_playmaking)
+            if 'Athleticism' in cols:
+                player_stats_agg_notTransformed.insert(7, "Athleticism", player_athleticism)
+            if 'Score' in cols:
+                player_stats_agg_notTransformed.insert(7, "Score", player_scores)
+
+        if 'EXPERIENCE' in cols:
+            player_stats_agg_notTransformed.insert(7, "EXPERIENCE", [list(season_df[season_df['player_id'] == p_id]['Experience'])[0] for p_id in list(player_stats_agg_notTransformed['PLAYER_ID'].unique())])
+        if 'HEIGHT' in cols:
+            player_stats_agg_notTransformed.insert(7, "HEIGHT", [list(season_df[season_df['player_id'] == p_id]['Height (cm)'])[0] for p_id in list(player_stats_agg_notTransformed['PLAYER_ID'].unique())])
+        if 'WEIGHT' in cols:
+            player_stats_agg_notTransformed.insert(7, "WEIGHT", [list(season_df[season_df['player_id'] == p_id]['Weight (kg)'])[0] for p_id in list(player_stats_agg_notTransformed['PLAYER_ID'].unique())])
+        
+
     players_stats_agg = copy.deepcopy(player_stats_agg_notTransformed)
 
     if norm == True:
@@ -155,6 +210,7 @@ def aggregate_data(players_stats, seasons = ['2020-21', '2019-20', '2018-19'], w
 
     players_stats_agg = players_stats_agg.drop(columns=['GP', 'GS', 'MIN'])
     player_stats_agg_notTransformed = player_stats_agg_notTransformed.drop(columns=['GP', 'GS', 'MIN'])
+
     return players_stats_agg, player_stats_agg_notTransformed
 
 
@@ -381,11 +437,19 @@ class RecommendationEngine:
         self.cols_sel = cols_sel
             
     def recommend(self):   
+
+        if (self.option == 'Fit') & len(set(['Playmaking', 'Athleticism', 'Score']).intersection(set(self.cols_sel))) > 0:
+            raise ValueError("The 'Fit' option cannot be just in conjunction with one of the following attributes: 'Playmaking', 'Athleticism', 'Score'.\nPlease change your selected features.")
+
         #ids_samePosition = list(players_data[players_data["position"] == self.position]['id'])
         #stats = players_stats_agg[players_stats_agg['PLAYER_ID'].isin(ids_samePosition)] # get only players of same position
-        
+
         stats_repl_player = self.stats[self.stats['PLAYER_ID'] == self.player_id].iloc[:,5:].to_numpy() # get data from player to be replaced
         stats = self.stats[players_data['team'] != self.team] # exclude players from same team
+
+        #print('WATCH:')
+        #print(self.stats.head())
+
         stats_num = stats.iloc[:,5:].to_numpy()        
         if stats_repl_player.shape[0] != 0:
     
@@ -664,8 +728,17 @@ class RecommendationEngine:
         num_teams = sum([len(teams[x]) for x in teams if isinstance(teams[x], list)]) # count total number of model teams
         stats_teams = np.zeros((num_teams, len(self.cols_sel) - 8)) # not store values for player_id : team_abbreviation + GS, GP, MIN
         for i, season in enumerate(teams):
-            seasons_past = seasons[seasons.index(season) - 3 : seasons.index(season)]   
+            seasons_past = list(reversed(seasons[seasons.index(season) - 3 : seasons.index(season)]))
             agg_data_seasons, _ = aggregate_data(players_stats, [f"20{season}" for season in seasons_past], self.w, self.cols_sel)
+
+            ## join data here ??? -> no, not include for historic players at all
+            ### normalize weights etc, join at persons
+            season_features = f"20{seasons_past[0][:2]}"
+            season_df = players_physical[players_physical['Season'] == int(season_features)]
+
+            scaler = StandardScaler()
+            norm_data = scaler.fit_transform(season_df.iloc[:,1:4])
+            season_df.iloc[:,1:4] = norm_data
             
             for j in range(len(teams[season])):
                 team = teams[season][j]
@@ -678,6 +751,13 @@ class RecommendationEngine:
                 players_not_found = []
                 for s_five_player in s_five.keys():
                     stats_player = agg_data_seasons[agg_data_seasons['PLAYER_ID'] == int(s_five_player)].iloc[:,5:] # with int() conversion: not good style
+                    if 'WEIGHT' in self.cols_sel:
+                        stats_player['WEIGHT'] = list(season_df[season_df['player_id'] == int(s_five_player)]['Weight (kg)'])[0]
+                    if 'HEIGHT' in self.cols_sel:
+                        stats_player['HEIGHT'] = list(season_df[season_df['player_id'] == int(s_five_player)]['Height (cm)'])[0]
+                    if 'EXPERIENCE' in self.cols_sel:
+                        stats_player['EXPERIENCE'] = list(season_df[season_df['player_id'] == int(s_five_player)]['Experience'])[0]
+
                     stats_players.append(stats_player)
                     _, distance, _ = self.distance_comp(input_player, stats_player.to_numpy(), self.distance_measure, topN = 2)
                     try:
@@ -813,10 +893,12 @@ def playoff_player(season, team_abb, names = False):
 # Exemplary execution
 if __name__ == "__main__":
     w = [7/10, 2/10, 1/10]
-    cols_sel = ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT']
-    stats_agg, stats_agg_notTransformed = aggregate_data(players_stats, ['2020-21', '2019-20', '2018-19'], w, cols_sel) # [0, 1, 2, 3, 4, 5, 6, 7, 8])
+    rec_type = 'Fit'
+    cols_sel = ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'EXPERIENCE', 'HEIGHT', 'WEIGHT', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT']
+    #cols_sel += ['Playmaking', 'Athleticism', 'Score']
+    stats_agg, stats_agg_notTransformed = aggregate_data(players_stats, ['2020-21', '2019-20', '2018-19'], w, cols_sel, rec_type) # [0, 1, 2, 3, 4, 5, 6, 7, 8])
     data_emb, emb, _, _, _ = embeddings('spectral', stats_agg, stats_agg_notTransformed, dim=3)
-    sample_recommendation = RecommendationEngine(stats_agg, "LeBron James", 'Fit', 'L2', w, cols_sel).recommend()
+    sample_recommendation = RecommendationEngine(stats_agg, "LeBron James", rec_type, 'L2', w, cols_sel).recommend()
 
     #print(commonplayerinfo.CommonPlayerInfo(201939).get_data_frames()[0]['SEASON_EXP', 'HEIGHT'])
     

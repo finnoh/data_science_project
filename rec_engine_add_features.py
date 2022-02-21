@@ -58,5 +58,4 @@ for i in range(player_data.shape[0]):
 
 
 ratings_df = pd.DataFrame(ratings_matched)
-
-print(ratings_df.head())
+ratings_df.to_csv('data/rec_engine/nba2k_ratings_adj.csv', index = False)

@@ -1,3 +1,4 @@
+from mplcursors import HoverMode
 from hotzone import hotzone
 import dash
 import wikipediaapi
@@ -49,8 +50,9 @@ import plotly.graph_objects as go
 from src.get_data import *
 import recommmendation_engine
 import dash_bootstrap_components as dbc
-from src.tabs import player, team, recommendation, mincer_tab
-
+from src.tabs import player, team, recommendation, mincer_tab, welcome
+#import json
+import io
 
 
 # assume you have a "long-form" data frame
@@ -69,14 +71,15 @@ boxscores_20_21 = recommmendation_engine.get_boxscores('20_21')
 
 # APP LAYOUT
 app.layout = html.Div(children=[
-    dcc.Tabs(id='tabs-example', value='tab-1', children=[
-        dcc.Tab(label='Player', value='tab-1', children=[
+    dcc.Tabs(id='tabs', value='tab-1', children=[
+        dcc.Tab(label="Welcome", value='tab-1', children=[welcome.welcome_tab]),
+        dcc.Tab(label='Player', value='tab-2', children=[
             player.jumbotron_player, html.Hr(className="my-2"), player.top_players, player.draft_pick_performance
         ]),
-        dcc.Tab(label='Team', value='tab-5', children=[team.jumbotron
+        dcc.Tab(label='Team', value='tab-3', children=[team.jumbotron
                                                        ]),
-        dcc.Tab(label='Recommendation', value='tab-3', children =[recommendation.recommendation_tab]),
-        dcc.Tab(label="Salary", value='tab-4', children=[mincer_tab.mincer])
+        dcc.Tab(label='Recommendation', value='tab-4', children =[recommendation.recommendation_tab]),
+        dcc.Tab(label="Salary", value='tab-5', children=[mincer_tab.mincer])
     ], colors={
         "border": "white",
         "primary": "#17408b",
@@ -92,6 +95,8 @@ team_data = recommmendation_engine.get_teams_data()
 
 
 # APP CALLBACKS
+
+####### Tab 0: Welcome
 
 ####### Tab 1: Player
 @app.callback(
@@ -304,60 +309,181 @@ def update_output(value):
 
 ####### Tab 3: Recommendation
 @app.callback(
+    Output("infocanvas", "is_open"),
+    Input("rec-infocanvas", "n_clicks"),
+    [State("infocanvas", "is_open")],
+)
+def toggle_offcanvas(n1, is_open):
+    if n1:
+        return not is_open
+    return is_open
+
+@app.callback(
+    Output('mincer-output-rec', 'data'),
+    [Input('mincer-rec-dropdown', 'value'), Input('teamRec-select-dropdown', 'value')]
+)
+def update_output(modelname, team):
+    # train, test split
+    X_train, y_train, df_train, X_test, y_test, df_test, X, y, df = select_features()
+
+    # select model and tuning
+    model, param_grid = select_model_grid(model_name=modelname)
+
+    # fit the model, score and predict on whole data set
+    model_fitted = wrapper_tune_fit(X_train=X_train, y_train=y_train, model=model, param_grid=param_grid)
+    score = score_model(X_test=X_test, y_test=y_test, model=model_fitted)
+    prediction, model_fitted = fit_predict_full(X_train, y_train, X_test, model=model_fitted)
+
+    # create dataframe for plot and the plot itself
+    df_plot = create_plot_dataset(prediction=prediction, y=y_test, df=df_test)
+
+    df_salary = df_plot[['id', 'Predicted']].astype({"id": int, "Predicted": float})
+
+    players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=False)
+    players = list(players_team.keys())
+
+    results_player = {} # {p: round(list(df_salary[df_salary['id'] == p]['Predicted'])[0], 2) for p in players}
+    for p in players:
+        try:
+            results_player[p] = round(list(df_salary[df_salary['id'] == p]['Predicted'])[0], 2)
+        except:
+            results_player[p] = 0.0
+
+    return results_player 
+
+
+@app.callback(
     [Output('playerRep-image_1', 'src'),
-     Output('playerRep-str_1', 'children')],
-    [Input('teamRec-select-dropdown', 'value')])
-def get_starting_five(team):
+     Output('playerRep-str_1', 'children'),
+     Output('playerRep-price_1', 'children')],
+    [Input('teamRec-select-dropdown', 'value'),
+     Input('mincer-output-rec', 'data')])
+def get_starting_five(team, predicted_salaries):
     players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
     player_name = list(players_team.keys())[3]
     player_id = list(player_data[player_data['player_names'] == player_name]['id'])[0]
     player_pos = list(player_data[player_data['player_names'] == player_name]['position'])[0]
-    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})"
+
+    pred_salary = predicted_salaries[str(player_id)]
+    if pred_salary > 0.0:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'green'
+    elif pred_salary == 0.0:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'black'
+    else:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'red'
+
+    result_salary = html.Div([html.Div('Mincer Analysis:', style = {'margin-right': '5px'}),
+                              html.Div(pred_salary, style = {"color": c})], style = {'display':'flex'})
+
+    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})", result_salary
 
 @app.callback(
     [Output('playerRep-image_2', 'src'),
-     Output('playerRep-str_2', 'children')],
-    [Input('teamRec-select-dropdown', 'value')])
-def get_starting_five(team):
+     Output('playerRep-str_2', 'children'),
+     Output('playerRep-price_2', 'children')],
+    [Input('teamRec-select-dropdown', 'value'),
+     Input('mincer-output-rec', 'data')])
+def get_starting_five(team, predicted_salaries):
     players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
     player_name = list(players_team.keys())[4]
     player_id = list(player_data[player_data['player_names'] == player_name]['id'])[0]
     player_pos = list(player_data[player_data['player_names'] == player_name]['position'])[0]
-    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})"
+    pred_salary = predicted_salaries[str(player_id)]
+    if pred_salary > 0.0:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'green'
+    elif pred_salary == 0.0:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'black'
+    else:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'red'
+
+    result_salary = html.Div([html.Div('Mincer Analysis:', style = {'margin-right': '5px'}),
+                              html.Div(pred_salary, style = {"color": c})], style = {'display':'flex'})
+    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})", result_salary
 
 @app.callback(
     [Output('playerRep-image_3', 'src'),
-     Output('playerRep-str_3', 'children')],
-    [Input('teamRec-select-dropdown', 'value')])
-def get_starting_five(team):
+     Output('playerRep-str_3', 'children'),
+     Output('playerRep-price_3', 'children')],
+    [Input('teamRec-select-dropdown', 'value'),
+     Input('mincer-output-rec', 'data')])
+def get_starting_five(team, predicted_salaries):
     players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
     player_name = list(players_team.keys())[0]
     player_id = list(player_data[player_data['player_names'] == player_name]['id'])[0]
     player_pos = list(player_data[player_data['player_names'] == player_name]['position'])[0]
-    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})"
+    pred_salary = predicted_salaries[str(player_id)]
+    if pred_salary > 0.0:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'green'
+    elif pred_salary == 0.0:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'black'
+    else:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'red'
+
+    result_salary = html.Div([html.Div('Mincer Analysis:', style = {'margin-right': '5px'}),
+                              html.Div(pred_salary, style = {"color": c})], style = {'display':'flex'})
+    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})", result_salary
 
 @app.callback(
     [Output('playerRep-image_4', 'src'),
-     Output('playerRep-str_4', 'children')],
-    [Input('teamRec-select-dropdown', 'value')])
-def get_starting_five(team):
+     Output('playerRep-str_4', 'children'),
+     Output('playerRep-price_4', 'children')],
+    [Input('teamRec-select-dropdown', 'value'),
+     Input('mincer-output-rec', 'data')])
+def get_starting_five(team, predicted_salaries):
     players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
     player_name = list(players_team.keys())[1]
     player_id = list(player_data[player_data['player_names'] == player_name]['id'])[0]
     player_pos = list(player_data[player_data['player_names'] == player_name]['position'])[0]
-    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})"
+    pred_salary = predicted_salaries[str(player_id)]
+    if pred_salary > 0.0:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'green'
+    elif pred_salary == 0.0:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'black'
+    else:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'red'
+
+    result_salary = html.Div([html.Div('Mincer Analysis:', style = {'margin-right': '5px'}),
+                              html.Div(pred_salary, style = {"color": c})], style = {'display':'flex'})
+    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})", result_salary
 
 
 @app.callback(
     [Output('playerRep-image_5', 'src'),
-     Output('playerRep-str_5', 'children')],
-    [Input('teamRec-select-dropdown', 'value')])
-def get_starting_five(team):
+     Output('playerRep-str_5', 'children'),
+     Output('playerRep-price_5', 'children')],
+    [Input('teamRec-select-dropdown', 'value'),
+     Input('mincer-output-rec', 'data')])
+def get_starting_five(team, predicted_salaries):
     players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
     player_name = list(players_team.keys())[2]
     player_id = list(player_data[player_data['player_names'] == player_name]['id'])[0]
     player_pos = list(player_data[player_data['player_names'] == player_name]['position'])[0]
-    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})"
+    pred_salary = predicted_salaries[str(player_id)]
+    if pred_salary > 0.0:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'green'
+    elif pred_salary == 0.0:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'black'
+    else:
+        pred_salary = '${:,.2f}'.format(pred_salary)
+        c = 'red'
+
+    result_salary = html.Div([html.Div('Mincer Analysis:', style = {'margin-right': '5px'}),
+                              html.Div(pred_salary, style = {"color": c})], style = {'display':'flex'})
+    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})", result_salary
 
 
 #    Output('playerRep-image', 'src'),
@@ -379,17 +505,32 @@ def update_image_repTeam(value):
     #Output('playerRec-table', 'data'),
     Output('playerRec-table', 'children'),
     Output('players-recommended', 'data'),
-    Output('btn_1', 'n_clicks'), Output('btn_2', 'n_clicks'), Output('btn_3', 'n_clicks'), Output('btn_4', 'n_clicks'), Output('btn_5', 'n_clicks'), Output('pos_img', 'data')],
-    [Input('teamRec-select-dropdown', 'value'), State('recommendation-type', 'value'), State("checklist-columns", "value"), State('recommendation-distance', 'value'),
+    Output('btn_1', 'n_clicks'), Output('btn_2', 'n_clicks'), Output('btn_3', 'n_clicks'), Output('btn_4', 'n_clicks'), Output('btn_5', 'n_clicks'), Output('pos_img', 'data'), 
+    Output('alert-triggered', 'data'),
+    Output('alert-features-triggered', 'data'),
+    Output('playerRec-stats', 'data')],
+    [Input('teamRec-select-dropdown', 'value'), State('recommendation-type', 'value'), State('recommendation-distance', 'value'),
+     State("checklist-all-details", "value"), State("checklist-off-details", "value"), State("checklist-off2-details", "value"), State("checklist-def-details", "value"),
      Input('btn_1', 'n_clicks'), Input('btn_2', 'n_clicks'), Input('btn_3', 'n_clicks'), Input('btn_4', 'n_clicks'), Input('btn_5', 'n_clicks')],
-     State('weight1', 'value'), State('weight2', 'value'), State('weight3', 'value')
+     State('weight1', 'value'), State('weight2', 'value'), State('weight3', 'value'), Input('alert-triggered', 'data'), Input('alert-features-triggered', 'data'), Input('mincer-rec-dropdown', 'value')
      )
-def selected_player(team, rec_type, cols, dist_m, b1, b2, b3, b4, b5, w1, w2, w3):  
+def selected_player(team, rec_type, dist_m, cols_all, cols_off, cols_off2, cols_def, b1, b2, b3, b4, b5, w1, w2, w3, weights_error, features_error, mincer_option):  
     players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
     weights = [w1/100, w2/100, w3/100] #[7/10, 2/10, 1/10]
 
+    if (rec_type == 'Fit') & len(set(['Playmaking', 'Athleticism', 'Score']).intersection(set(cols_all))) > 0:
+        features_error = True
+        print(features_error)
+        return 0, 0, 0, None, None, None, None, None, 0, False, features_error, 0 # data, columns
+    
+    else:
+        features_error = False
+
     if w1 + w2 + w3 != 100: # add??
-        print('Error:', weights)
+        weights_error = True
+        #print('Error:', weights)
+    else:
+        weights_error = False
 
     if b1 is not None:
         rep_player = list(players_team.keys())[3]
@@ -415,27 +556,100 @@ def selected_player(team, rec_type, cols, dist_m, b1, b2, b3, b4, b5, w1, w2, w3
         rep_player = list(players_team.keys())[3] 
         pos = 1
         
+    cols = cols_all + cols_off + cols_off2 + cols_def
 
-    if 'PLAYER_AGE' in cols:
-        sel_col = ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE' 'GP', 'GS', 'MIN']
-        cols.remove('PLAYER_AGE')
-    else:
-        sel_col = ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'GP', 'GS', 'MIN']
+    #if 'PLAYER_AGE' in cols:
+    #    sel_col = ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE' 'GP', 'GS', 'MIN']
+    #    cols.remove('PLAYER_AGE')
+    #else:
+    sel_col = ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'GP', 'GS', 'MIN']
+
     stats_agg, _ = recommmendation_engine.aggregate_data(players_stats, w = weights, cols = sel_col+cols)
-
     #data_emb, emb, _, _, _ = recommmendation_engine.embeddings('umap', stats_agg, stats_agg_notTransformed)
     sample_recommendation = recommmendation_engine.RecommendationEngine(stats_agg, rep_player, rec_type, distance_measure = dist_m, w = weights, cols_sel = sel_col+cols) # 'Similar'
     r, result_table = sample_recommendation.recommend()
+
+    ## Mincer values
+    X_train, y_train, df_train, X_test, y_test, df_test, X, y, df = select_features()
+    model, param_grid = select_model_grid(model_name=mincer_option)  # select model and tuning
+
+    # fit the model, score and predict on whole data set
+    model_fitted = wrapper_tune_fit(X_train=X_train, y_train=y_train, model=model, param_grid=param_grid)
+    score = score_model(X_test=X_test, y_test=y_test, model=model_fitted)
+    prediction, model_fitted = fit_predict_full(X_train, y_train, X_test, model=model_fitted)
+
+    # create dataframe for plot and the plot itself
+    df_plot = create_plot_dataset(prediction=prediction, y=y_test, df=df_test)
+
+    df_salary = df_plot[['id', 'Predicted']].astype({"id": int, "Predicted": float})
+
+    players = list(result_table['player'])
+    ids = [list(player_data[player_data['player_names'] == player]['id'])[0] for player in players]
+
+    results_player = [] # {p: round(list(df_salary[df_salary['id'] == p]['Predicted'])[0], 2) for p in players}
+    for p in ids:
+        try:
+            results_player.append(round(list(df_salary[df_salary['id'] == p]['Predicted'])[0], 2))
+        except:
+            results_player.append(0.0)
+
+
+    # formatting the table
+    result_table.rename({'luxury_tax': 'Luxury Tax'}, axis=1, inplace=True)
+    if 'HEIGHT' in cols:
+        result_table.rename({'HEIGHT': 'Height'}, axis=1, inplace=True)
+    if 'WEIGHT' in cols:
+        result_table.rename({'WEIGHT': 'Weight'}, axis=1, inplace=True)
+    if 'EXPERIENCE' in cols:
+        result_table.rename({'EXPERIENCE': 'Experience'}, axis=1, inplace=True)
+    if 'PLAYER_AGE' in cols:
+        result_table.rename({'PLAYER_AGE': 'Age'}, axis=1, inplace=True)
+        result_table['Age'] = [list(players_stats[(players_stats['PLAYER_ID'] == p) & (players_stats['SEASON_ID'] == '2020-21')]['PLAYER_AGE'])[0] for p in ids]
+    
     result_table.distance = result_table.distance.round(2)
-    result_table['id'] = result_table.index ##
+    result_table['id'] = result_table.index 
+    result_table.insert(2, "Priced", results_player) ## ???
+
     columns = [{"name": i, "id": i} for i in result_table.columns]
     data = result_table.to_dict('records')
+
+    tooltip_columns = {'player': 'Player name', 
+                       'distance': 'Overall distance over all selected attributes',
+                       'Age': 'Age of player',
+                       'Priced': 'Over-/under-priced according to Mincer model', 
+                       'Luxury Tax': 'Sum of luxury tax (in $) over next four seasons',
+                       'FGM': 'Field Goals Made',
+                       'FG3_PCT': '3-point Percentage',
+                       'FGA': 'Field Goals Attempted',
+                       'FG3M': '3-point Shots Made',
+                       'FTM': 'Free Throws Made',
+                       'FG3A': '3-point Shots Attempted',
+                       'FG_PCT': 'Field Goals Percentage',
+                       'FT_PCT': 'Free Throws Percentage',
+                       'TOV': 'Turnovers',
+                       'FTA': 'Free throws attempted',
+                       'AST': 'Assists',
+                       'PTS': 'Points',
+                       'OREB': 'Offensive rebounds',
+                       'DREB': 'Defensive rebounds',
+                       'PF': 'Personal fouls',
+                       'STL': 'Steals',
+                       'BLK': 'Blocked Shots',
+                       'REB': 'Total Rebounds',
+                       'Height': 'Height (in cm)',
+                       'Weight': 'Weight (in kg)',
+                       'Experience': 'Years in the league',
+                       'Score': 'Player score computed on stints',
+                       'Athleticism': 'XXXX',
+                       'Playmaking': 'XXXX'}
 
     dt = dash_table.DataTable(
             data = data,
             columns=[{'name': i, 'id': i} for i in result_table.columns if i != 'id'],
             style_data_conditional=recommendation.highlight_max_col(result_table),
-            sort_action="native"
+            tooltip_header={i:tooltip_columns[i] for i in list(result_table.columns) if i != 'id'},
+            sort_action="native",
+            style_cell={'minWidth': '100px'}
         )
 
     players_plot = list(result_table['player'])
@@ -445,7 +659,7 @@ def selected_player(team, rec_type, cols, dist_m, b1, b2, b3, b4, b5, w1, w2, w3
     #print(players_plot)
     #print()
 
-    return r, dt, players_plot, b1, b2, b3, b4, b5, pos # data, columns
+    return r, dt, players_plot, b1, b2, b3, b4, b5, pos, weights_error, features_error, stats_agg.to_json() # data, columns
 
 #stats_agg, stats_agg_notTransformed = aggregate_data(players_stats, [7/10, 2/10, 1/10], ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT'])
 
@@ -455,6 +669,27 @@ def selected_player(team, rec_type, cols, dist_m, b1, b2, b3, b4, b5, w1, w2, w3
 #    Input('teamRec-player-dropdown', 'children'))
 # def print_recommended_player(value):
 #    return f"{value}"
+
+
+@app.callback(
+    Output("alert-weights", "is_open"),
+    [Input('btn_1', 'n_clicks'), Input('btn_2', 'n_clicks'), Input('btn_3', 'n_clicks'), Input('btn_4', 'n_clicks'), Input('btn_5', 'n_clicks')],
+    [State("alert-weights", "is_open"), State("alert-triggered", "data")],
+)
+def toggle_alert(b1, b2, b3, b4, b5, triggered, is_open):
+    if triggered:
+        return not is_open
+    return is_open
+
+@app.callback(
+    Output("alert-features", "is_open"),
+    [Input('btn_1', 'n_clicks'), Input('btn_2', 'n_clicks'), Input('btn_3', 'n_clicks'), Input('btn_4', 'n_clicks'), Input('btn_5', 'n_clicks'),
+     Input('alert-features-triggered', 'data')],
+    [State("alert-features", "is_open")],
+)
+def toggle_alert(b1, b2, b3, b4, b5, triggered, is_open):
+    return triggered
+
 
 @app.callback(
     [Output('playerRec-image_1', 'src'),Output('playerRec-image_2', 'src'),Output('playerRec-image_3', 'src'),Output('playerRec-image_4', 'src'),Output('playerRec-image_5', 'src'),
@@ -506,12 +741,106 @@ def update_image_recPlayer(player, pos):
 # def print_recommended_player(value):
 #    return f"{value}"
 
+'''
 @app.callback(
     Output('playerRec-image', 'src'),
     Input('teamRec-player-dropdown', 'children'))
 def update_image_recPlayer(children):
     player_id = list(player_data[player_data['player_names'] == children]['id'])[0]
     return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png"
+'''
+
+
+
+@app.callback(
+    [Output("checklist-all-details", "value"), Output("checklist-off", "value"), Output("checklist-def", "value")],
+    [Input("checklist-all", "value")],
+    [State("checklist-all-details", "options"), State("checklist-off", "options"), State("checklist-def", "options")],
+)
+def select_all_none(all_group, all, off, defense):
+    if len(all_group) == 0:
+        return [], [], [] #all, off, off2, defense
+    else:
+        attributes_all = [option["value"] for option in all]
+        attributes_off = [option["value"] for option in off]
+        attributes_def = [option["value"] for option in defense]  
+        return attributes_all, attributes_off, attributes_def
+
+
+@app.callback(
+    [Output("checklist-off-details", "value"), Output("checklist-off2-details", "value")],
+    [Input("checklist-off", "value")],
+    [State("checklist-off-details", "options"), State("checklist-off2-details", "options")],
+)
+def select_all_none(all_selected, options1, options2):
+    if len(all_selected) == 0:
+        return [], []
+    else:
+        attributes_1 = []
+        attributes_2 = []
+        if 'Off' in all_selected:
+            off_cols1 = ['FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM'] 
+            off_cols2 = ['FTA', 'FT_PCT', 'AST', 'PTS', 'TOV', 'OREB']
+            for option in options1:
+                if option['value'] in off_cols1:
+                    attributes_1.append(option["value"])
+                elif option['value'] in off_cols2:
+                    attributes_2.append(option["value"])
+            for option in options2:
+                if option['value'] in off_cols1:
+                    attributes_1.append(option["value"])
+                elif option['value'] in off_cols2:
+                    attributes_2.append(option["value"])
+            #attributes = attributes = [option["value"] for option in options if option['value'] in def_cols]
+        return list(set(attributes_1)), list(set(attributes_2))
+
+@app.callback(
+    Output("checklist-def-details", "value"),
+    [Input("checklist-def", "value")],
+    [State("checklist-def-details", "options")],
+)
+def select_all_none(all_selected, options):
+    if len(all_selected) == 0:
+        return []
+    else:
+        attributes = []
+        if 'Def' in all_selected:
+            def_cols = ['OREB', 'DREB', 'REB', 'STL', 'BLK', 'TOV', 'PF']
+            for option in options:
+                if option['value'] in def_cols:
+                    attributes.append(option["value"])
+            #attributes = attributes = [option["value"] for option in options if option['value'] in def_cols]
+        return list(set(attributes))
+
+'''
+@app.callback(
+    Output("checklist-columns", "value"),
+    [Input("checklist-all", "value"), Input("checklist-off", "value"), Input("checklist-def", "value")],
+    [State("checklist-all-details", "options"), State("checklist-off-details", "options"), State("checklist-def-details", "options")],
+)
+def select_all_none(all_group, off_group, def_group, all_cols, off_cols, def_cols):
+    print(all_group, off_group, def_group, all_cols, off_cols, def_cols)
+    if len(all_selected) == 0:
+        return []
+    else:
+        attributes = []
+        if 'All' in all_selected:
+            for option in options:
+                attributes.append(option["value"])
+        if 'Off' in all_selected:
+            off_cols = ['FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'AST', 'PTS']
+            for option in options:
+                if option['value'] in off_cols:
+                    attributes.append(option["value"])
+            #attributes = [option["value"] for option in options if option['value'] in off_cols]
+        if 'Def' in all_selected:
+            def_cols = ['OREB', 'DREB', 'REB', 'STL', 'BLK', 'TOV', 'PF']
+            for option in options:
+                if option['value'] in def_cols:
+                    attributes.append(option["value"])
+            #attributes = attributes = [option["value"] for option in options if option['value'] in def_cols]
+    
+        return list(set(attributes))
 
 
 @app.callback(
@@ -541,6 +870,7 @@ def select_all_none(all_selected, options):
             #attributes = attributes = [option["value"] for option in options if option['value'] in def_cols]
     
         return list(set(attributes))
+'''
 
 
 @app.callback(
@@ -551,6 +881,7 @@ def get_emb(dim_type, dim, players):
     players_stats_emb, _, positions, data_names, player_stats = recommmendation_engine.embeddings(dim_type, stats_agg, stats_agg_notTransformed, int(dim)) # player
     name_emb = {'spectral': 'Sepectral Embedding', 'tsne': 'TSNE', 'umap': 'UMAP', 'pca': 'PCA'}
 
+    #print('Callback', player_stats.head())
     labels = copy.deepcopy(list(positions))
     for i, player in enumerate(players):
         ind_player = list(player_data.index[player_data['player_names'] == player])[0]
@@ -559,39 +890,97 @@ def get_emb(dim_type, dim, players):
         else:
             labels[ind_player] = 'Recommendations'
 
+    #print('Here:', players)
+
+    color_discrete_map = {'G': 'rgb(144,132,132)', 'F': 'rgb(203,197,197)', 'C': 'rgb(101,85,85)', 'Recommendations': 'rgb(66,171,59)', players[0]: 'rgb(250,49,69)'}
 
     if int(dim) == 2:
         fig = px.scatter(players_stats_emb, x="embedding_1", y="embedding_2", color = labels, hover_name = data_names, 
-                        color_discrete_sequence=["red", "green", "blue", "yellow", "black"],
-                        hover_data={'embedding_1':False, 
-                                    'embedding_2':False, 
-                                    'Position': positions,
-                                    'Age': player_stats['PLAYER_AGE'],
-                                    'Points': player_stats['PTS'],
-                                    '3P PCT': (':.3f', player_stats['FG3_PCT']), 
-                                    'Assists': (':.3f', player_stats['AST']),
-                                    'Rebounds': (':.3f', player_stats['REB'])
-                                    },
-                        labels={"embedding_1": "Embedding Dimension 1", "embedding_2": "Embedding Dimension 2"}, title=f"{name_emb[str(dim_type)]} representation of NBA players")
+                        #color_discrete_sequence=["red", "green", "blue", "orange", "black"],
+                        color_discrete_map=color_discrete_map,
+                        #hover_data={'embedding_1':False, 
+                        #            'embedding_2':False, 
+                        #            'Position': positions,
+                        #            'Age': player_stats['PLAYER_AGE'],
+                        #            'Points': (':.3f', player_stats['PTS']),
+                        #            '3P PCT': (':.3f', player_stats['FG3_PCT']), 
+                        #            'Assists': (':.3f', player_stats['AST']),
+                        #            'Rebounds': (':.3f', player_stats['REB'])
+                        #            },
+                        labels={"embedding_1": "Embedding Dimension 1", "embedding_2": "Embedding Dimension 2"}, title=f"{name_emb[str(dim_type)]} Representation of NBA players")
+        fig.update_layout(legend_title_text = '<b>Positions / Players</b>')
         fig.update_layout(transition_duration=500, template='simple_white')
-        return fig
+        fig.update_traces(hoverinfo='none', hovertemplate='')
+
     
     if int(dim) == 3:
-        fig = px.scatter_3d(players_stats_emb, x="embedding_1", y="embedding_2", z = "embedding_3", color = labels, hover_name = data_names, 
-                        color_discrete_sequence=["red", "green", "blue", "yellow", "black"],
-                        hover_data={'embedding_1':False, 
-                                    'embedding_2':False, 
-                                    'embedding_3':False, 
-                                    'Position': positions,
-                                    'Age': player_stats['PLAYER_AGE'],
-                                    'Points': player_stats['PTS'],
-                                    '3P PCT': (':.3f', player_stats['FG3_PCT']), 
-                                    'Assists': (':.3f', player_stats['AST']),
-                                    'Rebounds': (':.3f', player_stats['REB'])
-                                    },
+        fig = px.scatter_3d(players_stats_emb, x="embedding_1", y="embedding_2", z = "embedding_3", color = labels, #hover_name = data_names, 
+                        #color_discrete_sequence=["red", "green", "blue", "orange", "black"],
+                        color_discrete_map=color_discrete_map,
+                        #hover_data={'embedding_1':False, 
+                        #            'embedding_2':False, 
+                        #            'embedding_3':False, 
+                        #            'Position': positions,
+                        #            'Age': player_stats['PLAYER_AGE'],
+                        #            'Points': (':.3f', player_stats['PTS']),
+                        #            '3P PCT': (':.3f', player_stats['FG3_PCT']), 
+                        #            'Assists': (':.3f', player_stats['AST']),
+                        #            'Rebounds': (':.3f', player_stats['REB'])
+                        #            },
                         labels={"embedding_1": "Embedding Dimension 1", "embedding_2": "Embedding Dimension 2", "embedding_3": "Embedding Dimension 2"}, title=f"{name_emb[str(dim_type)]} representation of NBA players")
+        fig.update_layout(legend_title_text = '<b>Positions / Players</b>')
         fig.update_layout(transition_duration=500, template='simple_white')
-        return fig
+        fig.update_traces(hoverinfo='none', hovertemplate='')
+
+    return fig
+
+
+@app.callback(
+    Output("graph-rec-tooltip", "show"),
+    Output("graph-rec-tooltip", "bbox"),
+    Output("graph-rec-tooltip", "children"),
+    [Input('rec-dimreduction-graph1', "hoverData"), Input('playerRec-stats', 'data')]
+)
+def display_hover(hoverData, df):
+
+    if hoverData is None:
+        return False, no_update, no_update
+
+    # demo only shows the first point, but other points may also be available
+    pt = hoverData["points"][0]
+    bbox = pt["bbox"]
+    num = pt["pointNumber"]
+
+    #print(hoverData)
+
+    df = pd.read_json(df)
+
+    name = pt['hovertext']
+    player_id = list(player_data[player_data['player_names'] == name]['id'])[0]
+
+    df_row = df[df['PLAYER_ID'] == player_id] #df.iloc[num]
+    img_src = f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png"
+
+    age = list(players_stats[(players_stats['PLAYER_ID'] == player_id) & (players_stats['SEASON_ID'] == '2020-21')]['PLAYER_AGE'])[0]
+    points = df_row['PTS'].iloc[0]
+    P3PCT = df_row['FG3_PCT'].iloc[0]
+    Assists = df_row['AST'].iloc[0]
+    Rebounds = df_row['REB'].iloc[0]
+
+    children = [
+        html.Div([
+            html.Img(src=img_src, style={"width": "100%"}),
+            html.P(f"{name}", style={"color": "darkblue"}),
+            html.P(f"{int(age)} years old", style={"color": "black"}),
+            html.P(f"Points: {np.round((points), 2)}", style={"color": "black"}),
+            html.P(f"3P-PCT: {np.round((P3PCT), 2)}", style={"color": "black"}),
+            html.P(f"Assists: {np.round((Assists), 2)}", style={"color": "black"}),
+            html.P(f"Rebounds: {np.round((Rebounds), 2)}", style={"color": "black"}),
+        ], style={'width': '200px'})
+    ]
+
+    return True, bbox, children
+
 
 #### Tab 4: Mincer
 
