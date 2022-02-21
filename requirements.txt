@@ -1,3 +1,4 @@
+wheel==0.37.1
 beautifulsoup4==4.10.0
 dash==2.0.0
 dash_bootstrap_components==1.0.2
@@ -20,4 +21,4 @@ umap==0.1.1
 umap_learn==0.5.1
 Wikipedia_API==0.5.4
 dash_daq==0.5.0
-wheel==0.37.1
+uwsgi
