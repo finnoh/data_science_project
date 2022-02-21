@@ -63,7 +63,7 @@ left_jumbotron = dbc.Col([dbc.Row([col_teamname, col_logo], className="align-ite
                               dcc.Graph(id='teamselect-capspace-graph')
                           ])], md=6, className="h-100 p-5 bg-light border rounded-3")
 
-jumbotron = dbc.Row(
-    [left_jumbotron, right_part],
-    className="align-items-md-stretch",
+jumbotron = html.Div([dbc.Row(
+    [left_jumbotron, right_part], className="align-items-md-stretch"),
+    html.Div(id='team-table')]
 )

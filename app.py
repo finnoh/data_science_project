@@ -109,52 +109,6 @@ def update_output(value):
 
 
 @app.callback(
-    [Output('teamselect-output-container', 'children'),
-     Output('offcanvas', 'title')],
-    Input('teamselect-dropdown', 'value'))
-def update_output(value):
-    return _team_full_name(value), _team_full_name(value)
-
-####### Tab 2: Team
-@app.callback(
-    [dash.dependencies.Output('teamselect-mvp-image', 'src'),
-     dash.dependencies.Output('teamselect-mvp-descr', 'children'),
-     dash.dependencies.Output('teamselect-mvp-name', 'children')],
-    [dash.dependencies.Input('teamselect-dropdown', 'value')])
-def update_output(value):
-    team_id = _get_team_id(value)
-    mvp_data, url_image = _get_mvp_id_team(team_id=team_id, season='2020-21')
-    mvp_name, mvp_pos = _player_full_name(player_id=mvp_data[0])
-    descr = _mvp_descr_builder(mvp_name=mvp_name, mvp_position=mvp_pos, mvp_data=mvp_data)
-    return url_image, descr, mvp_name
-
-
-@app.callback(
-    Output('teamselect-link-button', 'children'),
-    Input('teamselect-dropdown', 'value'))
-def update_output(value):
-    full_name = _team_full_name(value)
-    return f'Visit the {full_name}\'s website.'
-
-
-@app.callback(
-    Output('teamselect-link-button', 'href'),
-    Input('teamselect-dropdown', 'value'))
-def update_output(value):
-    nickname = _link_team_website(value)
-    return f"https://www.nba.com/{nickname}/"
-
-
-@app.callback(
-    Output('teamSel-image', 'src'),
-    [Input('playerselect-dropdown', 'value')])
-def update_image_selTeam(value):
-    team_abb = list(player_data[player_data['id'] == value]['team'])[0]
-    return f"http://i.cdn.turner.com/nba/nba/.element/img/1.0/teamsites/logos/teamlogos_500x500/{team_abb.lower()}.png"
-
-
-
-@app.callback(
     [Output('playerselect-topplayer', 'data'),
     Output('playerselect-topplayer', 'columns')],
     [Input('playerselect-dropdown', 'value')])
@@ -238,6 +192,67 @@ def update_image_src(value):
     return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(value)}.png"
 
 
+
+@app.callback(
+    Output('hotzone-graph', 'figure'),
+    [Input('playerselect-dropdown', 'value')])
+def hotzone_graph(value):
+    shots = hotzone(value)
+    fig = px.scatter(x=shots["LOC_X"], y=shots["LOC_Y"], color=shots['SHOT_MADE_FLAG'].astype(str),
+                     width=1200, height=1000, opacity=0.5)
+    # fig.update_layout(transition_duration=500, template='simple_white')
+    # fig = px.density_heatmap(shots, x="LOC_X", y="LOC_Y", z="SHOT_MADE_FLAG", histfunc="avg", width=1200, height=1000)
+
+    # fig = fig.update_layout(template="simple_white")
+    fig = draw_plotly_court(fig=fig, fig_width=600)
+    fig.update_layout(yaxis_visible=False, yaxis_showticklabels=False, xaxis_visible=False, xaxis_showticklabels=False)
+    return fig
+
+####### Tab 2: Team
+@app.callback(
+    [Output('teamselect-output-container', 'children'),
+     Output('offcanvas', 'title')],
+    Input('teamselect-dropdown', 'value'))
+def update_output(value):
+    return _team_full_name(value), _team_full_name(value)
+
+@app.callback(
+    [dash.dependencies.Output('teamselect-mvp-image', 'src'),
+     dash.dependencies.Output('teamselect-mvp-descr', 'children'),
+     dash.dependencies.Output('teamselect-mvp-name', 'children')],
+    [dash.dependencies.Input('teamselect-dropdown', 'value')])
+def update_output(value):
+    team_id = _get_team_id(value)
+    mvp_data, url_image = _get_mvp_id_team(team_id=team_id, season='2020-21')
+    mvp_name, mvp_pos = _player_full_name(player_id=mvp_data[0])
+    descr = _mvp_descr_builder(mvp_name=mvp_name, mvp_position=mvp_pos, mvp_data=mvp_data)
+    return url_image, descr, mvp_name
+
+
+@app.callback(
+    Output('teamselect-link-button', 'children'),
+    Input('teamselect-dropdown', 'value'))
+def update_output(value):
+    full_name = _team_full_name(value)
+    return f'Visit the {full_name}\'s website.'
+
+
+@app.callback(
+    Output('teamselect-link-button', 'href'),
+    Input('teamselect-dropdown', 'value'))
+def update_output(value):
+    nickname = _link_team_website(value)
+    return f"https://www.nba.com/{nickname}/"
+
+
+@app.callback(
+    Output('teamSel-image', 'src'),
+    [Input('playerselect-dropdown', 'value')])
+def update_image_selTeam(value):
+    team_abb = list(player_data[player_data['id'] == value]['team'])[0]
+    return f"http://i.cdn.turner.com/nba/nba/.element/img/1.0/teamsites/logos/teamlogos_500x500/{team_abb.lower()}.png"
+
+
 @app.callback(
     dash.dependencies.Output('teamselect-image', 'src'),
     [dash.dependencies.Input('teamselect-dropdown', 'value')])
@@ -286,26 +301,67 @@ def _player_wiki_summary(value):
 
 
 @app.callback(
-    Output('hotzone-graph', 'figure'),
-    [Input('playerselect-dropdown', 'value')])
-def hotzone_graph(value):
-    shots = hotzone(value)
-    fig = px.scatter(x=shots["LOC_X"], y=shots["LOC_Y"], color=shots['SHOT_MADE_FLAG'].astype(str),
-                     width=1200, height=1000, opacity=0.5)
-    # fig.update_layout(transition_duration=500, template='simple_white')
-    # fig = px.density_heatmap(shots, x="LOC_X", y="LOC_Y", z="SHOT_MADE_FLAG", histfunc="avg", width=1200, height=1000)
-
-    # fig = fig.update_layout(template="simple_white")
-    fig = draw_plotly_court(fig=fig, fig_width=600)
-    fig.update_layout(yaxis_visible=False, yaxis_showticklabels=False, xaxis_visible=False, xaxis_showticklabels=False)
-    return fig
-
-
-@app.callback(
     Output('teamselect-capspace-graph', 'figure'),
     Input('teamselect-dropdown', 'value'))
 def update_output(value):
     return recommmendation_engine.visualize_capspace_team_plotly(value)
+
+
+@app.callback(
+    Output('team-table', 'children'),
+    Input('teamselect-dropdown', 'value'))
+def update_output(value):
+
+    result_table = players_stats[(players_stats['TEAM_ABBREVIATION'] == value) & (players_stats['SEASON_ID'] == '2020-21')]
+    result_table['id'] = result_table.index 
+    result_table['PLAYER_ID'] = [list(player_data[player_data['id'] == id]['player_names'])[0] for id in list(result_table['PLAYER_ID'].unique())]
+    result_table = result_table.drop(['SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION'], axis=1).sort_values(by=['MIN'], ascending=False)
+
+    print(result_table.head())
+    
+    columns = [{"name": i, "id": i} for i in result_table.columns]
+    data = result_table.to_dict('records')
+
+    tooltip_columns = {'player': 'Player name', 
+                       'distance': 'Overall distance over all selected attributes',
+                       'Age': 'Age of player',
+                       'Priced': 'Over-/under-priced according to Mincer model', 
+                       'Luxury Tax': 'Sum of luxury tax (in $) over next four seasons',
+                       'FGM': 'Field Goals Made',
+                       'FG3_PCT': '3-point Percentage',
+                       'FGA': 'Field Goals Attempted',
+                       'FG3M': '3-point Shots Made',
+                       'FTM': 'Free Throws Made',
+                       'FG3A': '3-point Shots Attempted',
+                       'FG_PCT': 'Field Goals Percentage',
+                       'FT_PCT': 'Free Throws Percentage',
+                       'TOV': 'Turnovers',
+                       'FTA': 'Free throws attempted',
+                       'AST': 'Assists',
+                       'PTS': 'Points',
+                       'OREB': 'Offensive rebounds',
+                       'DREB': 'Defensive rebounds',
+                       'PF': 'Personal fouls',
+                       'STL': 'Steals',
+                       'BLK': 'Blocked Shots',
+                       'REB': 'Total Rebounds',
+                       'Height': 'Height (in cm)',
+                       'Weight': 'Weight (in kg)',
+                       'Experience': 'Years in the league',
+                       'Score': 'Player score computed on stints',
+                       'Athleticism': 'XXXX',
+                       'Playmaking': 'XXXX'}
+
+    dt = dash_table.DataTable(
+        data = data,
+        columns=[{'name': i, 'id': i} for i in result_table.columns if i != 'id'],
+        #tooltip_header={i:tooltip_columns[i] for i in list(result_table.columns) if i != 'id'},
+        sort_action="native",
+        style_cell={'minWidth': '100px'}
+    )
+
+    return dt
+
 
 ####### Tab 3: Recommendation
 @app.callback(
@@ -337,7 +393,7 @@ def update_output(modelname, team):
     # create dataframe for plot and the plot itself
     df_plot = create_plot_dataset(prediction=prediction, y=y_test, df=df_test)
 
-    df_salary = df_plot[['id', 'Predicted']].astype({"id": int, "Predicted": float})
+    df_salary = df_plot[['id', 'Difference']].astype({"id": int, "Difference": float})
 
     players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=False)
     players = list(players_team.keys())
@@ -345,7 +401,7 @@ def update_output(modelname, team):
     results_player = {} # {p: round(list(df_salary[df_salary['id'] == p]['Predicted'])[0], 2) for p in players}
     for p in players:
         try:
-            results_player[p] = round(list(df_salary[df_salary['id'] == p]['Predicted'])[0], 2)
+            results_player[p] = round(list(df_salary[df_salary['id'] == p]['Difference'])[0], 2)
         except:
             results_player[p] = 0.0
 
@@ -367,13 +423,13 @@ def get_starting_five(team, predicted_salaries):
     pred_salary = predicted_salaries[str(player_id)]
     if pred_salary > 0.0:
         pred_salary = '${:,.2f}'.format(pred_salary)
-        c = 'green'
+        c = 'red'
     elif pred_salary == 0.0:
         pred_salary = '${:,.2f}'.format(pred_salary)
         c = 'black'
     else:
         pred_salary = '${:,.2f}'.format(pred_salary)
-        c = 'red'
+        c = 'green'
 
     result_salary = html.Div([html.Div('Mincer Analysis:', style = {'margin-right': '5px'}),
                               html.Div(pred_salary, style = {"color": c})], style = {'display':'flex'})
@@ -394,13 +450,13 @@ def get_starting_five(team, predicted_salaries):
     pred_salary = predicted_salaries[str(player_id)]
     if pred_salary > 0.0:
         pred_salary = '${:,.2f}'.format(pred_salary)
-        c = 'green'
+        c = 'red'
     elif pred_salary == 0.0:
         pred_salary = '${:,.2f}'.format(pred_salary)
         c = 'black'
     else:
         pred_salary = '${:,.2f}'.format(pred_salary)
-        c = 'red'
+        c = 'green'
 
     result_salary = html.Div([html.Div('Mincer Analysis:', style = {'margin-right': '5px'}),
                               html.Div(pred_salary, style = {"color": c})], style = {'display':'flex'})
@@ -420,13 +476,13 @@ def get_starting_five(team, predicted_salaries):
     pred_salary = predicted_salaries[str(player_id)]
     if pred_salary > 0.0:
         pred_salary = '${:,.2f}'.format(pred_salary)
-        c = 'green'
+        c = 'red'
     elif pred_salary == 0.0:
         pred_salary = '${:,.2f}'.format(pred_salary)
         c = 'black'
     else:
         pred_salary = '${:,.2f}'.format(pred_salary)
-        c = 'red'
+        c = 'green'
 
     result_salary = html.Div([html.Div('Mincer Analysis:', style = {'margin-right': '5px'}),
                               html.Div(pred_salary, style = {"color": c})], style = {'display':'flex'})
@@ -446,13 +502,13 @@ def get_starting_five(team, predicted_salaries):
     pred_salary = predicted_salaries[str(player_id)]
     if pred_salary > 0.0:
         pred_salary = '${:,.2f}'.format(pred_salary)
-        c = 'green'
+        c = 'red'
     elif pred_salary == 0.0:
         pred_salary = '${:,.2f}'.format(pred_salary)
         c = 'black'
     else:
         pred_salary = '${:,.2f}'.format(pred_salary)
-        c = 'red'
+        c = 'green'
 
     result_salary = html.Div([html.Div('Mincer Analysis:', style = {'margin-right': '5px'}),
                               html.Div(pred_salary, style = {"color": c})], style = {'display':'flex'})
@@ -473,13 +529,13 @@ def get_starting_five(team, predicted_salaries):
     pred_salary = predicted_salaries[str(player_id)]
     if pred_salary > 0.0:
         pred_salary = '${:,.2f}'.format(pred_salary)
-        c = 'green'
+        c = 'red'
     elif pred_salary == 0.0:
         pred_salary = '${:,.2f}'.format(pred_salary)
         c = 'black'
     else:
         pred_salary = '${:,.2f}'.format(pred_salary)
-        c = 'red'
+        c = 'green'
 
     result_salary = html.Div([html.Div('Mincer Analysis:', style = {'margin-right': '5px'}),
                               html.Div(pred_salary, style = {"color": c})], style = {'display':'flex'})
@@ -581,7 +637,7 @@ def selected_player(team, rec_type, dist_m, cols_all, cols_off, cols_off2, cols_
     # create dataframe for plot and the plot itself
     df_plot = create_plot_dataset(prediction=prediction, y=y_test, df=df_test)
 
-    df_salary = df_plot[['id', 'Predicted']].astype({"id": int, "Predicted": float})
+    df_salary = df_plot[['id', 'Difference']].astype({"id": int, "Difference": float})
 
     players = list(result_table['player'])
     ids = [list(player_data[player_data['player_names'] == player]['id'])[0] for player in players]
@@ -589,7 +645,7 @@ def selected_player(team, rec_type, dist_m, cols_all, cols_off, cols_off2, cols_
     results_player = [] # {p: round(list(df_salary[df_salary['id'] == p]['Predicted'])[0], 2) for p in players}
     for p in ids:
         try:
-            results_player.append(round(list(df_salary[df_salary['id'] == p]['Predicted'])[0], 2))
+            results_player.append(round(list(df_salary[df_salary['id'] == p]['Difference'])[0], 2))
         except:
             results_player.append(0.0)
 
