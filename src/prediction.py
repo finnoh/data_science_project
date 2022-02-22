@@ -9,6 +9,7 @@ import pandas as pd
 import statsmodels.api as sm
 import plotly.express as px
 import dill as pickle
+from sklearn.metrics import mean_absolute_error
 
 from nba_api.stats.endpoints import playercareerstats
 import time
@@ -460,6 +461,10 @@ def get_train_test_set(df_model, last_train_season):
     X_test = df_model_test[features_names].to_numpy()
     y_test = df_model_test['PLUS_MINUS'].to_numpy()
 
+    # heuristic to fill in rookies and comeback players
+    X_train[np.isnan(X_train)] = 0
+    X_test[np.isnan(X_test)] = 0
+
     # get bool for na rows
     na_rows_train = (~np.isnan(X_train).any(axis=1)) & (~np.isnan(y_train))
     na_rows_test = (~np.isnan(X_test).any(axis=1)) & (~np.isnan(y_test))
@@ -663,6 +668,10 @@ def train_test_split_trade(player_in, player_out, df, scores, last_train_season=
     :param last_train_season:
     :return:
     """
+
+    # loop von mehreren trades recursiv, player ids als zwei Listen
+
+
     df_trade, out_team_id, in_team_id = trade_player_function(player_in=player_in, player_out=player_out, df=df,
                                                               scores=scores)
     df_model_trade = get_model_data(df=df_trade)
@@ -713,7 +722,7 @@ def model_fit_predict(model, fitted, df_model_test, df_model_test_trade):
 
     return mean_plus_minus_pred, mean_plus_minus_trade, sigma_plus_minus_pred, sigma_plus_minus_trade
 
-def simulate_season(mean, sigma, df_int_test, n_sim: int=1000):
+def simulate_season(mean, mean_trade, sigma, df_int_test, n_sim: int=1000):
     """ season simulation
 
     :param mean:
@@ -726,22 +735,36 @@ def simulate_season(mean, sigma, df_int_test, n_sim: int=1000):
                                                  sigma_predicted=sigma,
                                                  n_sim=n_sim)
 
+    one_season_trade, season_sim_trade = simulate_one_season(mean_predicted=mean_trade,
+                                                 sigma_predicted=sigma,
+                                                 n_sim=n_sim)
+
     # cout out ht and at wins
     ht_wins = np.where(season_sim > 0, 1, 0)
     at_wins = np.where(season_sim > 0, 0, 1)
 
+    ht_wins_trade = np.where(season_sim_trade > 0, 1, 0)
+    at_wins_trade = np.where(season_sim_trade > 0, 0, 1)
+
     # setup loop
     histories = np.arange(n_sim)
     list_history = list()
+    list_history_trade = list()
 
     for h in tqdm(histories):
         # select one history
         df_int_test['ht_wins'] = ht_wins[:, h]
         df_int_test['at_wins'] = at_wins[:, h]
 
+        df_int_test['ht_wins_trade'] = ht_wins_trade[:, h]
+        df_int_test['at_wins_trade'] = at_wins_trade[:, h]
+
         # create scoreboard
         ht_perf = df_int_test.groupby(['SEASON_ID', 'HOME_TEAM_ABB'])[['ht_wins']].sum().reset_index()
         at_perf = df_int_test.groupby(['SEASON_ID', 'AWAY_TEAM_ABB'])[['at_wins']].sum().reset_index()
+
+        ht_perf_trade = df_int_test.groupby(['SEASON_ID', 'HOME_TEAM_ABB'])[['ht_wins_trade']].sum().reset_index()
+        at_perf_trade = df_int_test.groupby(['SEASON_ID', 'AWAY_TEAM_ABB'])[['at_wins_trade']].sum().reset_index()
 
         # merge
         perf = pd.merge(ht_perf, at_perf, left_on=['SEASON_ID', 'HOME_TEAM_ABB'],
@@ -756,10 +779,29 @@ def simulate_season(mean, sigma, df_int_test, n_sim: int=1000):
         # store history number
         perf['HISTORY'] = h
 
+        # merge trade
+        perf_trade = pd.merge(ht_perf_trade, at_perf_trade, left_on=['SEASON_ID', 'HOME_TEAM_ABB'],
+                        right_on=['SEASON_ID', 'AWAY_TEAM_ABB'])
+        perf_trade['WINS'] = perf_trade['ht_wins_trade'] + perf_trade['at_wins_trade']
+        perf_trade = perf_trade.drop(['HOME_TEAM_ABB', 'ht_wins_trade', 'at_wins_trade'], axis=1)
+        perf_trade = perf_trade.sort_values('WINS', ascending=False)
+
+        # create rank
+        perf_trade['RANK'] = perf_trade['WINS'].rank(ascending=False)
+
+        # store history number
+        perf_trade['HISTORY'] = h
+
         # append
         list_history.append(perf)
+        list_history_trade.append(perf_trade)
 
     performance_tmp = pd.concat(list_history)
+    performance_tmp['KIND'] = "Prediction"
+    performance_tmp_trade = pd.concat(list_history_trade)
+    performance_tmp_trade['KIND'] = "Trade"
+
+    performance_tmp = pd.concat([performance_tmp, performance_tmp_trade])
 
     # plots performance whole league and conferences
     team_conference = pd.read_csv("./data/data_assets/team_conference.csv", delimiter="\t")
@@ -779,11 +821,77 @@ def plot_whole_league(performance):
     my_order_all = performance.groupby('AWAY_TEAM_ABB')["RANK"].median().sort_values().index.values
     my_order_conf = performance.groupby('AWAY_TEAM_ABB')["RANK"].median().sort_values().index.values
 
-    fig = px.box(performance, x='AWAY_TEAM_ABB', y='RANK', category_orders={'AWAY_TEAM_ABB': my_order_all})
+    fig = px.box(performance, x='AWAY_TEAM_ABB', y='RANK', color="KIND", category_orders={'AWAY_TEAM_ABB': my_order_all})
     fig.update_yaxes(autorange="reversed")
+    fig.update_layout(transition_duration=500, template="simple_white")
 
-    fig2 = px.box(performance, x='AWAY_TEAM_ABB', y='CONF_RANK', color='CONFERENCE',
+    fig2 = px.box(performance, x='AWAY_TEAM_ABB', y='CONF_RANK', facet_col='CONFERENCE',
                   category_orders={'AWAY_TEAM_ABB': my_order_conf})
     fig2.update_yaxes(autorange="reversed")
+    fig2.update_layout(transition_duration=500, template="simple_white")
 
     return fig, fig2
+
+
+def create_scoreboard(df_int_test, prediction, prediction_trade):
+    """ creates wins and ranks teams
+    """
+
+    # insert prediction of PM
+    df_int_test['Prediction_PM'] = prediction
+    df_int_test['Prediction_Trade_PM'] = prediction_trade
+
+    # count out wins from home and away
+    df_int_test['WIN_HOME'] = np.where(df_int_test['PLUS_MINUS'] > 0, 1, 0)
+    df_int_test['WIN_AWAY'] = np.where(df_int_test['PLUS_MINUS'] > 0, 0, 1)
+
+    df_int_test['WIN_HOME_pred'] = np.where(df_int_test['Prediction_PM'] > 0, 1, 0)
+    df_int_test['WIN_AWAY_pred'] = np.where(df_int_test['Prediction_PM'] > 0, 0, 1)
+
+    df_int_test['WIN_HOME_trade'] = np.where(df_int_test['Prediction_Trade_PM'] > 0, 1, 0)
+    df_int_test['WIN_AWAY_trade'] = np.where(df_int_test['Prediction_Trade_PM'] > 0, 0, 1)
+
+    # season performance from home and away perspective
+    season_performance_home = df_int_test.groupby(['SEASON_ID', 'HOME_TEAM_ABB'])[
+        ['WIN_HOME', 'WIN_HOME_pred', 'WIN_HOME_trade']].sum()
+    season_performance_away = df_int_test.groupby(['SEASON_ID', 'AWAY_TEAM_ABB'])[
+        ['WIN_AWAY', 'WIN_AWAY_pred', 'WIN_AWAY_trade']].sum()
+    season_performance_home.reset_index(inplace=True)
+    season_performance_away.reset_index(inplace=True)
+
+    # merge together based on teams
+    season_performance_tmp = pd.merge(season_performance_home, season_performance_away,
+                                      left_on=['SEASON_ID', 'HOME_TEAM_ABB'], right_on=['SEASON_ID', 'AWAY_TEAM_ABB'])
+
+    # add up home and away for the total
+    season_performance_tmp['WIN'] = season_performance_tmp['WIN_HOME'] + season_performance_tmp['WIN_AWAY']
+    season_performance_tmp['WIN_pred'] = season_performance_tmp['WIN_HOME_pred'] + season_performance_tmp[
+        'WIN_AWAY_pred']
+    season_performance_tmp['WIN_trade'] = season_performance_tmp['WIN_HOME_trade'] + season_performance_tmp[
+        'WIN_AWAY_trade']
+    season_performance_tmp['TEAM_ABBREVIATION'] = season_performance_tmp['HOME_TEAM_ABB']
+
+    # compute the predicted change due to trade
+    season_performance_tmp['TRADE_CHANGE'] = season_performance_tmp['WIN_trade'] - season_performance_tmp['WIN_pred']
+
+    # cosmetics
+    season_performance = season_performance_tmp.drop(
+        ['HOME_TEAM_ABB', 'AWAY_TEAM_ABB', 'WIN_HOME', 'WIN_HOME_pred', 'WIN_HOME_trade', 'WIN_AWAY', 'WIN_AWAY_pred',
+         'WIN_AWAY_trade'], axis=1)
+
+    # rankings
+    season_performance['RANK'] = season_performance['WIN'].astype(int).rank(ascending=False)
+    season_performance['RANK_pred'] = season_performance['WIN_pred'].astype(int).rank(ascending=False)
+    season_performance['RANK_trade'] = season_performance['WIN_trade'].astype(int).rank(ascending=False)
+
+    # order after rank
+    season_performance = season_performance.sort_values(['SEASON_ID', 'RANK_pred'], ascending=True)
+
+    # calculate mae of wins
+    mae_pred = mean_absolute_error(season_performance['WIN'].values, season_performance['WIN_pred'].values)
+
+    return season_performance, mae_pred
+
+def vis_change(scoreboard):
+    fig = px.scatter(scoreboard, x="WIN_pred", y="WIN_trade", color="TRADE_CHANGE")
+    return fig

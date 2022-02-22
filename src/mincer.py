@@ -198,18 +198,24 @@ def plot_mincer(df_plot, logarithm: bool=False):
                 y=df_plot["Salary"],
                 mode="markers",
                 marker=dict(
-                    colorscale='Viridis',
+                    colorscale='Portland',
                     color=df_plot["Difference"],
-                    size=df_plot["GS"],
+                    #size=df_plot["GS"],
                     colorbar={"title": "Difference"},
                     line={"color": "#444"},
                     reversescale=False,
                     sizeref=3,
                     sizemode="diameter",
-                    opacity=0.5
+                    opacity=1
                 )
             )
         ])
+        fig.update_layout(transition_duration=500, template="simple_white")
+        fig.update_layout(
+            xaxis_title="Predicted Salary",
+            yaxis_title="True Salary",
+            legend_title_text="Overpaid"
+        )
 
     else:
         fig = go.Figure(data=[
@@ -218,16 +224,22 @@ def plot_mincer(df_plot, logarithm: bool=False):
                     y=df_plot["log_Salary"],
                     mode="markers",
                     marker=dict(
-                        colorscale='viridis',
+                        colorscale='Portland',
                         color=df_plot["Difference"],
-                        size=df_plot["GS"],
+                        #size=df_plot["GS"],
                         colorbar={"title": "Difference"},
                         line={"color": "#444"},
                         reversescale=False,
                         sizeref=3,
                         sizemode="diameter",
-                        opacity=0.5
+                        opacity=1
                 )
                 )])
+        fig.update_layout(transition_duration=500, template="simple_white")
+        fig.update_layout(
+            xaxis_title="Log Predicted Salary",
+            yaxis_title="Log True Salary",
+            legend_title_text="Overpaid"
+        )
 
     return fig

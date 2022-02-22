@@ -369,7 +369,7 @@ recommendation_outputs = html.Div(
                                     ),
                                      dbc.AccordionItem(
                                        #html.Div(id='playerselect-output-container-wiki'), title="Season prediction based on trade" # SEASON PREDICTION
-                                       html.Div('PLACEHOLDER'), title="Season prediction based on trade"
+                                       html.Div(dcc.Graph(id='s-prediction-output-graph_trade', clear_on_unhover=True)), title="Season prediction based on trade"
                                     ),
                                     dbc.AccordionItem(
                                         recommended_vis, title="Embeddings of recommended players"
@@ -407,7 +407,7 @@ recommendation_tab = html.Div([
                                   recommended_text,
                                   ]),
                         dcc.Store(id='pos_img'),
-                        dcc.Loading(children = [html.Div(id='teamRec-player-dropdown', style = {'display': 'none'})], fullscreen=False, type='dot', color="#119DFF"),
+                        dcc.Loading(children=[html.Div(id='teamRec-player-dropdown', style = {'display': 'none'})], fullscreen=False, type='dot', color="#119DFF"),
                         dcc.Store(id='players-recommended'),
                         dcc.Store(id = 'playerRec-stats'), 
                         recommendation_outputs

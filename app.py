@@ -106,7 +106,7 @@ team_data = recommmendation_engine.get_teams_data()
     Input('playerselect-dropdown', 'value'))
 def update_output(value):
     player_name, _ = _player_full_name(str(value))
-    return [f'Player has the ID: {value}'], player_name
+    return [f'{value}'], player_name
 
 
 @app.callback(
@@ -138,6 +138,8 @@ def pick_hist(value):
 
     # figure
     fig = px.histogram(tmp, x="Top %", nbins=60, range_x=[1, 60], marginal="rug", hover_data=tmp.columns)
+    fig.update_layout(transition_duration=500, template="simple_white")
+
     return fig
 
 
@@ -149,6 +151,7 @@ def pick_hist(value):
      Output('playerselect-graph1', 'figure'),
      Output('playerselect-score', 'children'),
      Output('playerselect-graph2', 'figure'),
+    Output('playerselect-graph3', 'figure'),
      Output('playerselect-draft', 'children'),
      Output('playerselect-bio', 'children')],
     [Input('playerselect-dropdown', 'value')])
@@ -177,16 +180,34 @@ def update_player(value):
     data = df.to_dict('records')
 
     df_season = get_season_data(player_id=value)
+    df_season['coef_perc_rank2'] = 100 - df_season['coef_perc_rank']
     df_salary = get_player_salary(player_id=value)
 
+    df_season_interaction = get_season_interaction_data(player_id=value)
+
     # get figure
-    fig = px.line(df_season, x="SEASON", y="coef_perc_rank", range_x=[2016, 2020], range_y=[0, 100])
+    fig = px.line(df_season, x="SEASON", y="coef_perc_rank2", range_x=[2016, 2020], range_y=[0, 100], labels={
+                     "SEASON": "Season",
+                     "coef_perc_rank2": "Player Score Top%"
+                 })
+    fig.update_yaxes(autorange="reversed")
     fig.update_layout(transition_duration=500, template="simple_white")
 
-    fig2 = px.line(df_salary, x="SEASON", y="value", range_x=[2016, 2024])
+    # get figure
+    fig3 = px.line(df_season_interaction, x="SEASON", y="coef_perc_rank2", range_x=[2016, 2020], range_y=[0, 100], labels={
+                     "SEASON": "Season",
+                     "coef_perc_rank2": "Player Score Top%"
+                 })
+    fig3.update_yaxes(autorange="reversed")
+    fig3.update_layout(transition_duration=500, template="simple_white")
+
+    fig2 = px.line(df_salary, x="SEASON", y="value", range_x=[2016, 2024], labels={
+                     "SEASON": "Season",
+                     "value": "Salary"
+                 })
     fig2.update_layout(transition_duration=500, template="simple_white")
 
-    return data, columns, fig, [f'Overall Top {player_score} %'], fig2, body, drafted
+    return data, columns, fig, [f'Overall Top {np.round(100 - player_score.values[0], 2)} %'], fig2, fig3, body, drafted
 
 
 @app.callback(
@@ -568,7 +589,8 @@ def update_image_repTeam(value):
     Output('btn_1', 'n_clicks'), Output('btn_2', 'n_clicks'), Output('btn_3', 'n_clicks'), Output('btn_4', 'n_clicks'), Output('btn_5', 'n_clicks'), Output('pos_img', 'data'), 
     Output('alert-triggered', 'data'),
     Output('alert-features-triggered', 'data'),
-    Output('playerRec-stats', 'data')],
+    Output('playerRec-stats', 'data'),
+     Output("s-prediction-output-graph_trade", "figure")],
     [Input('teamRec-select-dropdown', 'value'), State('recommendation-type', 'value'), State('recommendation-distance', 'value'),
      State("checklist-all-details", "value"), State("checklist-off-details", "value"), State("checklist-off2-details", "value"), State("checklist-def-details", "value"),
      Input('btn_1', 'n_clicks'), Input('btn_2', 'n_clicks'), Input('btn_3', 'n_clicks'), Input('btn_4', 'n_clicks'), Input('btn_5', 'n_clicks')],
@@ -719,7 +741,70 @@ def selected_player(team, rec_type, dist_m, cols_all, cols_off, cols_off2, cols_
     #print(players_plot)
     #print()
 
-    return r, dt, players_plot, b1, b2, b3, b4, b5, pos, weights_error, features_error, stats_agg.to_json() # data, columns
+
+    ######### PREDICTION
+
+    players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
+    map_name = pd.read_csv("./data/season_prediction/player_scores_16_20.csv",
+                           usecols=['PLAYER_ID', 'DISPLAY_FIRST_LAST'])
+    player_in = list(player_data[player_data['player_names'] == r]['id'])[0]
+    rep_player = None
+
+    if b1 is not None:
+        rep_player = list(players_team.keys())[0]
+        b1 = None
+        pos = 1
+    elif b2 is not None:
+        rep_player = list(players_team.keys())[1]
+        b2 = None
+        pos = 2
+    elif b3 is not None:
+        rep_player = list(players_team.keys())[2]
+        b3 = None
+        pos = 3
+    elif b4 is not None:
+        rep_player = list(players_team.keys())[3]
+        b4 = None
+        pos = 4
+    elif b5 is not None:
+        rep_player = list(players_team.keys())[4]
+        b5 = None
+        pos = 5
+    if rep_player is None:
+        player_out = player_in
+
+    else:
+        player_out = map_name[map_name['DISPLAY_FIRST_LAST'] == rep_player]['PLAYER_ID'].values[0]
+
+    df_schedule, df_boxscores, scores = load_scores_data()
+
+    df, X_train, y_train, X_test, y_test, df_model_train, df_model_test, df_int_train, df_int_test = train_test_split(
+        df_schedule,
+        df_boxscores,
+        scores,
+        seasons=[22021, 22020, 22019, 22018, 22017, 22016],
+        model_name="simulation")
+
+    df_model_test_trade, out_team_id, in_team_id = train_test_split_trade(player_in=player_in,
+                                                                          player_out=player_out,
+                                                                          df=df,
+                                                                          scores=scores,
+                                                                          last_train_season=22020)
+
+    model, fitted = get_bambi_model(model_name="simulation")
+
+    mean_plus_minus_pred, mean_plus_minus_trade, sigma_plus_minus_pred, sigma_plus_minus_trade = model_fit_predict(
+        model, fitted, df_model_test, df_model_test_trade)
+
+    performance = simulate_season(mean=mean_plus_minus_trade, mean_trade=mean_plus_minus_trade,
+                                  sigma=sigma_plus_minus_trade, df_int_test=df_int_test, n_sim=10)
+    # scoreboard, mae = create_scoreboard(df_int_test, mean_plus_minus_pred, mean_plus_minus_trade)
+    # scoreboard = scoreboard.sort_values('RANK')
+    fig, _ = plot_whole_league(performance)
+
+    #########
+
+    return r, dt, players_plot, b1, b2, b3, b4, b5, pos, weights_error, features_error, stats_agg.to_json(), fig # data, columns
 
 #stats_agg, stats_agg_notTransformed = aggregate_data(players_stats, [7/10, 2/10, 1/10], ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT'])
 
@@ -1107,79 +1192,385 @@ def display_hover(hoverData):
 
     return True, bbox, children
 
-@app.callback(
-    [Output("prediction-output-graph_trade", "figure"),
-     Output("prediction-output-graph2_trade", "figure")],
-    [Input('prediction-submit_trade', "n_clicks"),
-     Input('prediction-teamRec-starting5-dropdown', 'value'),
-     Input('prediction-teamRec-starting5-dropdown2', 'value')])
-def run_season_predictionb_trade(n_clicks, player_in, player_out):
+# @app.callback(
+#     [Output("prediction-output-graph_trade", "figure"),
+#      Output("prediction-output-graph2_trade", "figure")],
+#     [Input('prediction-submit_trade', "n_clicks"),
+#      Input('prediction-teamRec-starting5-dropdown', 'value'),
+#      Input('prediction-teamRec-starting5-dropdown2', 'value')])
+# def run_season_predictionb_trade(n_clicks, player_in, player_out):
+#
+#     df_schedule, df_boxscores, scores = load_scores_data()
+#
+#     df, X_train, y_train, X_test, y_test, df_model_train, df_model_test, df_int_train, df_int_test = train_test_split(df_schedule,
+#                                                                                                                       df_boxscores,
+#                                                                                                                       scores,
+#                                                                                                                       seasons=[22021, 22020, 22019, 22018, 22017, 22016],
+#                                                                                                                       model_name="simulation")
+#
+#     df_model_test_trade, out_team_id, in_team_id = train_test_split_trade(player_in=player_in, player_out=player_out, df=df,
+#                                                                               scores=scores, last_train_season=22020)
+#
+#     model, fitted = get_bambi_model(model_name="simulation")
+#
+#     mean_plus_minus_pred, mean_plus_minus_trade, sigma_plus_minus_pred, sigma_plus_minus_trade = model_fit_predict(model, fitted, df_model_test, df_model_test_trade)
+#     performance = simulate_season(mean=mean_plus_minus_trade, mean_trade=mean_plus_minus_trade, sigma=sigma_plus_minus_trade, df_int_test=df_int_test, n_sim=10)
+#     fig, fig2 = plot_whole_league(performance)
+#
+#     return fig, fig2
 
-    df_schedule, df_boxscores, scores = load_scores_data()
-
-    df, X_train, y_train, X_test, y_test, df_model_train, df_model_test, df_int_train, df_int_test = train_test_split(df_schedule,
-                                                                                                                      df_boxscores,
-                                                                                                                      scores,
-                                                                                                                      seasons=[22021, 22020, 22019, 22018, 22017, 22016],
-                                                                                                                      model_name="simulation")
-
-    df_model_test_trade, out_team_id, in_team_id = train_test_split_trade(player_in=player_in, player_out=player_out, df=df,
-                                                                              scores=scores, last_train_season=22020)
-
-    model, fitted = get_bambi_model(model_name="simulation")
-
-    mean_plus_minus_pred, mean_plus_minus_trade, sigma_plus_minus_pred, sigma_plus_minus_trade = model_fit_predict(model, fitted, df_model_test, df_model_test_trade)
-    performance = simulate_season(mean=mean_plus_minus_trade, sigma=sigma_plus_minus_trade, df_int_test=df_int_test, n_sim=10)
-    fig, fig2 = plot_whole_league(performance)
-
-    return fig, fig2
-
-@app.callback(
-    [Output("prediction-output-graphb_trade", "figure"),
-     Output("prediction-output-graph2b_trade", "figure")],
-    [Input('prediction-submit_trade', "n_clicks"),
-     Input('prediction-teamRec-starting5-dropdown', 'value'),
-     Input('prediction-teamRec-starting5-dropdown2', 'value')])
-def run_season_predictionb_trade(n_clicks, player_in, player_out):
-
-    df_schedule, df_boxscores, scores = load_scores_data()
-
-    df, X_train, y_train, X_test, y_test, df_model_train, df_model_test, df_int_train, df_int_test = train_test_split(df_schedule,
-                                                                                                                      df_boxscores,
-                                                                                                                      scores,
-                                                                                                                      seasons=[22021, 22020, 22019, 22018, 22017, 22016],
-                                                                                                                      model_name="simulation")
-
-    df_model_test_trade, out_team_id, in_team_id = train_test_split_trade(player_in=player_in, player_out=player_out, df=df,
-                                                                              scores=scores, last_train_season=22020)
-
-    model, fitted = get_bambi_model(model_name="simulation")
-
-    mean_plus_minus_pred, mean_plus_minus_trade, sigma_plus_minus_pred, sigma_plus_minus_trade = model_fit_predict(model, fitted, df_model_test, df_model_test_trade)
-    performance = simulate_season(mean=mean_plus_minus_trade, sigma=sigma_plus_minus_trade, df_int_test=df_int_test, n_sim=10)
-    fig, fig2 = plot_whole_league(performance)
-
-    return fig, fig2
+# @app.callback(
+#     [Output("prediction-output-graphb_trade", "figure"),
+#      Output("prediction-output-graph2b_trade", "figure")],
+#     [Input('prediction-submit_trade', "n_clicks"),
+#      Input('prediction-teamRec-starting5-dropdown', 'value'),
+#      Input('prediction-teamRec-starting5-dropdown2', 'value')])
+# def run_season_predictionb_trade(n_clicks, player_in, player_out):
+#
+#     df_schedule, df_boxscores, scores = load_scores_data()
+#
+#     df, X_train, y_train, X_test, y_test, df_model_train, df_model_test, df_int_train, df_int_test = train_test_split(df_schedule,
+#                                                                                                                       df_boxscores,
+#                                                                                                                       scores,
+#                                                                                                                       seasons=[22021, 22020, 22019, 22018, 22017, 22016],
+#                                                                                                                       model_name="simulation")
+#
+#     df_model_test_trade, out_team_id, in_team_id = train_test_split_trade(player_in=player_in, player_out=player_out, df=df,
+#                                                                               scores=scores, last_train_season=22020)
+#
+#     model, fitted = get_bambi_model(model_name="simulation")
+#
+#     mean_plus_minus_pred, mean_plus_minus_trade, sigma_plus_minus_pred, sigma_plus_minus_trade = model_fit_predict(model, fitted, df_model_test, df_model_test_trade)
+#     performance = simulate_season(mean=mean_plus_minus_trade, mean_trade=mean_plus_minus_trade, sigma=sigma_plus_minus_trade, df_int_test=df_int_test, n_sim=10)
+#     fig, fig2 = plot_whole_league(performance)
+#
+#     return fig, fig2
 
 ####
 
 @app.callback(
     Output('prediction-teamRep-image', 'src'),
-    [Input('prediction-teamRec-select-dropdown', 'value')])
+    [Input('pred-teamRec-select-dropdown', 'value')])
 def update_image_repTeam(value):
     return f"http://i.cdn.turner.com/nba/nba/.element/img/1.0/teamsites/logos/teamlogos_500x500/{value.lower()}.png"
 
-@app.callback(
-    Output('prediction-playerRep-image', 'src'),
-    [Input('prediction-teamRec-starting5-dropdown', 'value')])
-def update_image_src(value):
-    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(value)}.png"
+# @app.callback(
+#     Output('prediction-playerRep-image', 'src'),
+#     [Input('prediction-teamRec-starting5-dropdown', 'value')])
+# def update_image_src(value):
+#     return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(value)}.png"
+#
+# @app.callback(
+#     Output('prediction-playerRep-image2', 'src'),
+#     [Input('prediction-teamRec-starting5-dropdown2', 'value')])
+# def update_image_src(value):
+#     return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(value)}.png"
 
 @app.callback(
-    Output('prediction-playerRep-image2', 'src'),
-    [Input('prediction-teamRec-starting5-dropdown2', 'value')])
-def update_image_src(value):
-    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(value)}.png"
+    [Output('pred-playerRep-image_1', 'src'),
+     Output('pred-playerRep-str_1', 'children')],
+    [Input('pred-teamRec-select-dropdown', 'value')])
+def get_starting_five(team):
+    players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
+    player_name = list(players_team.keys())[0]
+    player_id = player_data[player_data['player_names'] == player_name]['id'].values[0]
+    player_pos = player_data[player_data['player_names'] == player_name]['position'].values[0]
+    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})"
+
+@app.callback(
+    [Output('pred-playerRep-image_2', 'src'),
+     Output('pred-playerRep-str_2', 'children')],
+    [Input('pred-teamRec-select-dropdown', 'value')])
+def get_starting_five(team):
+    players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
+    player_name = list(players_team.keys())[1]
+    player_id = list(player_data[player_data['player_names'] == player_name]['id'])[0]
+    player_pos = list(player_data[player_data['player_names'] == player_name]['position'])[0]
+    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})"
+
+@app.callback(
+    [Output('pred-playerRep-image_3', 'src'),
+     Output('pred-playerRep-str_3', 'children')],
+    [Input('pred-teamRec-select-dropdown', 'value')])
+def get_starting_five(team):
+    players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
+    player_name = list(players_team.keys())[2]
+    player_id = list(player_data[player_data['player_names'] == player_name]['id'])[0]
+    player_pos = list(player_data[player_data['player_names'] == player_name]['position'])[0]
+    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})"
+
+@app.callback(
+    [Output('pred-playerRep-image_4', 'src'),
+     Output('pred-playerRep-str_4', 'children')],
+    [Input('pred-teamRec-select-dropdown', 'value')])
+def get_starting_five(team):
+    players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
+    player_name = list(players_team.keys())[3]
+    player_id = list(player_data[player_data['player_names'] == player_name]['id'])[0]
+    player_pos = list(player_data[player_data['player_names'] == player_name]['position'])[0]
+    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})"
+
+@app.callback(
+    [Output('pred-playerRep-image_5', 'src'),
+     Output('pred-playerRep-str_5', 'children')],
+    [Input('pred-teamRec-select-dropdown', 'value'),
+     Input('pred-teamRec-select-dropdown', 'value')])
+def get_starting_five(team, player_in):
+    players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
+    player_name = list(players_team.keys())[4]
+    player_id = list(player_data[player_data['player_names'] == player_name]['id'])[0]
+    player_pos = list(player_data[player_data['player_names'] == player_name]['position'])[0]
+    return f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png", f"{player_name} ({player_pos})"
+
+
+# @app.callback(
+#     [
+#      Output('pred-btn_1', 'n_clicks'),
+#      Output('pred-btn_2', 'n_clicks'),
+#      Output('pred-btn_3', 'n_clicks'),
+#      Output('pred-btn_4', 'n_clicks'),
+#      Output('pred-btn_5', 'n_clicks'),
+#      Output("prediction-output-graphb_trade", "figure"),
+#      Output("prediction-output-graph2b_trade", "figure"),
+#     Output("prediction-teamRec-starting5-dropdown2-img", "src")],
+#     [Input('pred-teamRec-select-dropdown', 'value'),
+#      Input('pred-btn_1', 'n_clicks'),
+#      Input('pred-btn_2', 'n_clicks'),
+#      Input('pred-btn_3', 'n_clicks'),
+#      Input('pred-btn_4', 'n_clicks'),
+#      Input('pred-btn_5', 'n_clicks'),
+#      Input('prediction-teamRec-starting5-dropdown2', 'value')])
+# def selected_player_pred(team, b1, b2, b3, b4, b5, player_in):
+#
+#     players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
+#     map_name = pd.read_csv("./data/season_prediction/player_scores_16_20.csv", usecols=['PLAYER_ID', 'DISPLAY_FIRST_LAST'])
+#
+#     rep_player = None
+#
+#     if b1 is not None:
+#         rep_player = list(players_team.keys())[0]
+#         b1 = None
+#         pos = 1
+#     elif b2 is not None:
+#         rep_player = list(players_team.keys())[1]
+#         b2 = None
+#         pos = 2
+#     elif b3 is not None:
+#         rep_player = list(players_team.keys())[2]
+#         b3 = None
+#         pos = 3
+#     elif b4 is not None:
+#         rep_player = list(players_team.keys())[3]
+#         b4 = None
+#         pos = 4
+#     elif b5 is not None:
+#         rep_player = list(players_team.keys())[4]
+#         b5 = None
+#         pos = 5
+#     if rep_player is None:
+#         player_out = player_in
+#
+#     else:
+#         player_out = map_name[map_name['DISPLAY_FIRST_LAST'] == rep_player]['PLAYER_ID'].values[0]
+#
+#     df_schedule, df_boxscores, scores = load_scores_data()
+#
+#     df, X_train, y_train, X_test, y_test, df_model_train, df_model_test, df_int_train, df_int_test = train_test_split(df_schedule,
+#                                                                                                                       df_boxscores,
+#                                                                                                                       scores,
+#                                                                                                                       seasons=[22021, 22020, 22019, 22018, 22017, 22016],
+#                                                                                                                       model_name="simulation")
+#
+#     df_model_test_trade, out_team_id, in_team_id = train_test_split_trade(player_in=player_in,
+#                                                                           player_out=player_out,
+#                                                                           df=df,
+#                                                                           scores=scores,
+#                                                                           last_train_season=22020)
+#
+#     model, fitted = get_bambi_model(model_name="simulation")
+#
+#     mean_plus_minus_pred, mean_plus_minus_trade, sigma_plus_minus_pred, sigma_plus_minus_trade = model_fit_predict(model, fitted, df_model_test, df_model_test_trade)
+#     performance = simulate_season(mean=mean_plus_minus_trade, mean_trade=mean_plus_minus_trade, sigma=sigma_plus_minus_trade, df_int_test=df_int_test, n_sim=10)
+#
+#     fig, fig2 = plot_whole_league(performance)
+#
+#     return b1, b2, b3, b4, b5, fig, fig2, f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_in)}.png"
+
+@app.callback(
+    [
+        Output("prediction-output-graph_trade", "figure"),
+        Output("prediction-output-graph_trade3", "figure"),
+        Output("prediction-validation-table", "data"),
+    Output("prediction-validation-table", "columns"),
+    Output("prediction-mae", "children")],
+    [State('pred-teamRec-select-dropdown', 'value'),
+     State('pred-dd1', 'value'),
+     State('pred-dd2', 'value'),
+     State('pred-dd3', 'value'),
+     State('pred-dd4', 'value'),
+     State('pred-dd5', 'value'),
+     State('prediction-mode-dropdown', 'value'),
+     Input('exec-btn_1', 'n_clicks')])
+def selected_player_pred(team, player_in1, player_in2, player_in3, player_in4, player_in5, mode, exec):
+
+    if exec is None:
+        dash.no_update
+
+    players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=False)
+    map_name = pd.read_csv("./data/season_prediction/player_scores_16_20.csv", usecols=['PLAYER_ID', 'DISPLAY_FIRST_LAST'])
+
+    # player_in1 = map_name[map_name['DISPLAY_FIRST_LAST'] == b1]['PLAYER_ID'].values[0]
+    # player_in2 = map_name[map_name['DISPLAY_FIRST_LAST'] == b2]['PLAYER_ID'].values[0]
+    # player_in3 = map_name[map_name['DISPLAY_FIRST_LAST'] == b3]['PLAYER_ID'].values[0]
+    # player_in4 = map_name[map_name['DISPLAY_FIRST_LAST'] == b4]['PLAYER_ID'].values[0]
+    # player_in5 = map_name[map_name['DISPLAY_FIRST_LAST'] == b5]['PLAYER_ID'].values[0]
+
+    if player_in1 == "No Trade":
+        player_out1 = "No Trade"
+    else:
+        player_out1 = list(players_team.keys())[0]
+
+    if player_in2 == "No Trade":
+        player_out2 = "No Trade"
+    else:
+        player_out2 = list(players_team.keys())[1]
+
+    if player_in3 == "No Trade":
+        player_out3 = "No Trade"
+    else:
+        player_out3 = list(players_team.keys())[2]
+
+    if player_in4 == "No Trade":
+        player_out4 = "No Trade"
+    else:
+        player_out4 = list(players_team.keys())[3]
+
+    if player_in5 == "No Trade":
+        player_out5 = "No Trade"
+    else:
+        player_out5 = list(players_team.keys())[4]
+
+
+    list_players_in = [player_in1, player_in2, player_in3, player_in4, player_in5]
+    list_players_out = [player_out1, player_out2, player_out3, player_out4, player_out5]
+
+    # player_out = map_name[map_name['DISPLAY_FIRST_LAST'] == rep_player]['PLAYER_ID'].values[0]
+
+    df_schedule, df_boxscores, scores = load_scores_data()
+
+    df, X_train, y_train, X_test, y_test, df_model_train, df_model_test, df_int_train, df_int_test = train_test_split(df_schedule,
+                                                                                                                      df_boxscores,
+                                                                                                                      scores,
+                                                                                                                      seasons=[22021, 22020, 22019, 22018, 22017, 22016],
+                                                                                                                      model_name=mode)
+    df_trade = df
+    for t, trade in enumerate(list_players_in):
+
+        if trade == "No Trade":
+            pass
+
+        else:
+            df_trade, _, _ = trade_player_function(player_in=trade, player_out=list_players_out[t], df=df_trade, scores=scores)
+
+    df_model_trade = get_model_data(df=df_trade)
+    _, _, _, _, _, df_model_test_trade = get_train_test_set(df_model=df_model_trade, last_train_season=22020)
+
+    model, fitted = get_bambi_model(model_name=mode)
+
+    mean_plus_minus_pred, mean_plus_minus_trade, sigma_plus_minus_pred, sigma_plus_minus_trade = model_fit_predict(model, fitted, df_model_test, df_model_test_trade)
+
+    performance = simulate_season(mean=mean_plus_minus_pred, mean_trade=mean_plus_minus_trade, sigma=sigma_plus_minus_trade, df_int_test=df_int_test, n_sim=20)
+    scoreboard, mae = create_scoreboard(df_int_test, mean_plus_minus_pred, mean_plus_minus_trade)
+    scoreboard = scoreboard.sort_values('RANK')
+    fig3 = vis_change(scoreboard)
+    fig, fig2 = plot_whole_league(performance)
+
+    return fig, fig3, scoreboard.to_dict('records'), [{"name": i, "id": i} for i in scoreboard.columns], f"MAE Wins: {np.round(mae, 0)}"
+
+
+# @app.callback(
+#     [
+#         Output('btn_1', 'n_clicks'),
+#         Output('btn_2', 'n_clicks'),
+#         Output('btn_3', 'n_clicks'),
+#         Output('btn_4', 'n_clicks'),
+#         Output('btn_5', 'n_clicks'),
+#         Output("s-prediction-output-graph_trade", "figure")],
+#     [Input('teamRec-select-dropdown', 'value'),
+#      Input('btn_1', 'n_clicks'),
+#      Input('btn_2', 'n_clicks'),
+#      Input('btn_3', 'n_clicks'),
+#      Input('btn_4', 'n_clicks'),
+#      Input('btn_5', 'n_clicks'),
+#      Input('teamRec-player-dropdown', 'children')])
+# def selected_player_pred(team, b1, b2, b3, b4, b5, player_name_in):
+#
+#     players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
+#     map_name = pd.read_csv("./data/season_prediction/player_scores_16_20.csv", usecols=['PLAYER_ID', 'DISPLAY_FIRST_LAST'])
+#     player_in = list(player_data[player_data['player_names'] == player_name_in]['id'])[0]
+#     rep_player = None
+#
+#     if b1 is not None:
+#         rep_player = list(players_team.keys())[0]
+#         b1 = None
+#         pos = 1
+#     elif b2 is not None:
+#         rep_player = list(players_team.keys())[1]
+#         b2 = None
+#         pos = 2
+#     elif b3 is not None:
+#         rep_player = list(players_team.keys())[2]
+#         b3 = None
+#         pos = 3
+#     elif b4 is not None:
+#         rep_player = list(players_team.keys())[3]
+#         b4 = None
+#         pos = 4
+#     elif b5 is not None:
+#         rep_player = list(players_team.keys())[4]
+#         b5 = None
+#         pos = 5
+#     if rep_player is None:
+#         player_out = player_in
+#
+#     else:
+#         player_out = map_name[map_name['DISPLAY_FIRST_LAST'] == rep_player]['PLAYER_ID'].values[0]
+#
+#     df_schedule, df_boxscores, scores = load_scores_data()
+#
+#     df, X_train, y_train, X_test, y_test, df_model_train, df_model_test, df_int_train, df_int_test = train_test_split(df_schedule,
+#                                                                                                                       df_boxscores,
+#                                                                                                                       scores,
+#                                                                                                                       seasons=[22021, 22020, 22019, 22018, 22017, 22016],
+#                                                                                                                       model_name="simulation")
+#
+#     df_model_test_trade, out_team_id, in_team_id = train_test_split_trade(player_in=player_in,
+#                                                                           player_out=player_out,
+#                                                                           df=df,
+#                                                                           scores=scores,
+#                                                                           last_train_season=22020)
+#
+#     model, fitted = get_bambi_model(model_name="simulation")
+#
+#     mean_plus_minus_pred, mean_plus_minus_trade, sigma_plus_minus_pred, sigma_plus_minus_trade = model_fit_predict(model, fitted, df_model_test, df_model_test_trade)
+#
+#     performance = simulate_season(mean=mean_plus_minus_trade, mean_trade=mean_plus_minus_trade, sigma=sigma_plus_minus_trade, df_int_test=df_int_test, n_sim=10)
+#     #scoreboard, mae = create_scoreboard(df_int_test, mean_plus_minus_pred, mean_plus_minus_trade)
+#     #scoreboard = scoreboard.sort_values('RANK')
+#     fig, _ = plot_whole_league(performance)
+#
+#     return b1, b2, b3, b4, b5, fig
+
+
+@app.callback(
+    Output("infocanvas-pred", "is_open"),
+    Input("rec-infocanvas-pred", "n_clicks"),
+    [State("infocanvas-pred", "is_open")],
+)
+def toggle_offcanvas(n1, is_open):
+    if n1:
+        return not is_open
+    return is_open
 
 
 if __name__ == '__main__':

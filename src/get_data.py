@@ -122,8 +122,9 @@ def get_player_score(player_id: str):
     """
     data = pd.read_csv("./data/season_prediction/player_scores_16_20.csv")
     data_player = data[data['PLAYER_ID'] == player_id]
-    data_player['coef_perc_rank2'] = data_player['coef'].rank(ascending=False, pct=True) * 100
-    return np.round(data_player['coef_perc_rank2'].values[0], 2)
+    data_player['coef_perc_rank2'] = data_player['coef'].rank(ascending=False, pct=True)
+
+    return data_player['coef_perc_rank']
 
 def get_all_player_score():
     """
@@ -164,8 +165,32 @@ def get_season_data(player_id: str):
     data_player = data[data['PLAYER_ID'] == player_id]
     tmp = data_player.sort_values(['SEASON_ID'])
     tmp['SEASON'] = data_player['SEASON_ID'].apply(lambda x: int(x.split('-')[0]))
-
+    tmp['coef_perc_rank2'] = 100 - tmp['coef_perc_rank']
     return tmp
+
+def get_season_interaction_data(player_id: str):
+    list_data = ['./data/season_prediction/player_scores_interaction_16.csv',
+                                       './data/season_prediction/player_scores_interaction_17.csv',
+                                       './data/season_prediction/player_scores_interaction_18.csv',
+                                       "./data/season_prediction/player_scores_interaction_19.csv",
+                                       "./data/season_prediction/player_scores_interaction_20.csv"]
+    list_seasons = ["2016-17", "2017-18", "2018-19", "2019-20", "2020-21"]
+    ls_load = list()
+
+    for i, l in enumerate(list_data):
+        tmp_load = pd.read_csv(l)
+        tmp_load['SEASON_ID'] = list_seasons[i]
+        ls_load.append(tmp_load)
+
+    data = pd.concat(ls_load)
+    data_player = data[data['PLAYER_ID'] == player_id]
+
+    tmp = data_player.sort_values(['SEASON_ID'])
+    tmp['SEASON'] = data_player['SEASON_ID'].apply(lambda x: int(x.split('-')[0]))
+    tmp['coef_perc_rank2'] = 100 - tmp['coef_perc_rank']
+    return tmp
+
+
 
 def last_four_seasons(player_id, season_scores):
     """ Visualize players performance over last four seasons
@@ -191,27 +216,6 @@ def get_player_salary(player_id: str):
     print(tmp2)
 
     return tmp2
-
-
-def get_player_score(player_id: str):
-    """
-
-    :param player_id:
-    :return:
-    """
-    data = pd.read_csv("full_player_rating.csv")
-    data_player = data[data['PLAYER_ID'] == player_id]
-    return np.round(data_player['SCORE'].values[0], 2)
-
-def get_player_score(player_id: str):
-    """
-
-    :param player_id:
-    :return:
-    """
-    data = pd.read_csv("full_player_rating.csv")
-    data_player = data[data['PLAYER_ID'] == player_id]
-    return np.round(data_player['SCORE'].values[0], 2)
 
 def get_player_image(player_id):
     """ Get a players image based on his id
