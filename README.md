@@ -3,7 +3,7 @@
 This repository hosts the Data Science Project (DS500) of Finn Höner and Tim-Moritz Bündert.
 It contains all the commented code associated with the project along with the corresponding data.
 
-The dashboard is hosted on [this website](http://193.196.53.114/).
+The dashboard (using the **app.py** file) is hosted on [this website](http://193.196.53.114/).
 
 Larger data files can be accessed on [Google Drive](https://drive.google.com/drive/folders/1nl-O5oP8OEU6t839dVkCwwlSNc3XAY1e?usp=sharing).
 
