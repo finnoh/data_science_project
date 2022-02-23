@@ -27,4 +27,11 @@ Folder for source code, i.e. here we can specify python modules
 
 # Disclaimer
 The corresponding data along with the names and images displayed in the dashboard are not our property. Rather, the following references apply:
-
+* [NBA](https://www.nba.com/termsofuse), in particular 
+    - Images of teams: http://i.cdn.turner.com/nba/nba/.element/img/1.0/teamsites/logos/teamlogos_500x500/....png
+    - Images of players: https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/....png
+* [NBA_API](NBA API https://github.com/swar/nba_api)
+* Team salaries from https://www.spotrac.com/nba/cap/
+* Player salaries from https://hoopshype.com/salaries/players/
+* [NBA2k ratings](https://2kmtcentral.com/21/players/collection/)
+* [RAPM Scores](http://nbashotcharts.com/home)
