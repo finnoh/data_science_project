@@ -2,10 +2,11 @@ import pandas as pd
 import numpy as np
 from fuzzywuzzy import fuzz
 
+# load data
 player_data = pd.read_csv('players_data.csv')
 nba_2k = pd.read_csv('data/rec_engine/nba2k_ratings.csv')
 
-# match players from NBA 2k rating and the NBA api to get unique IDs
+# match players from NBA 2k rating and the NBA API to get unique IDs
 matched_player_names = []
 player_names = [list(nba_2k['player'])[j] for j in range(nba_2k.shape[0])]
 for i in range(player_data.shape[0]):
@@ -19,19 +20,19 @@ for i in range(player_data.shape[0]):
 
 lost_players = []
 
+# Match players where the names do not exactly match -> Fuzzy string matching
 for i in range(len(matched_player_names)):
     if matched_player_names[i] == 0:
-        player_name = list(player_data['player_names'])[i] #list(nba_2k['player'])[i]
+        player_name = list(player_data['player_names'])[i]
         fuzz_scores = np.array([fuzz.ratio(player_name, player_names[j]) for j in range(len(player_names))])
         max_ind = np.argmax(fuzz_scores)
-        if fuzz_scores[max_ind] > 69: #70
+        if fuzz_scores[max_ind] > 69:
             matched_player_name = player_names[max_ind]
             print(f"{player_name} matched to {matched_player_name}")
             matched_player_names[i] = list(nba_2k[nba_2k['player'] == matched_player_name]['player'])[0]
             player_names.remove(matched_player_name)
             print(fuzz_scores[max_ind])
         else:
-            #player_ids.append(0)
             print(f"{player_name} NOT matched to {player_names[max_ind]}")
             lost_players.append(player_name)
 
@@ -47,7 +48,7 @@ for i in range(player_data.shape[0]):
     p_name = list(player_data['player_names'])[i]
     matched_p_name = matched_player_names[i]
 
-    if (matched_p_name == 0) or (matched_p_name == 'Tyler Johnson') or (matched_p_name == 'Damyean Dotson'):
+    if (matched_p_name == 0) or (matched_p_name == 'Tyler Johnson') or (matched_p_name == 'Damyean Dotson'): # player has no rating
         dict_p = {'player': p_name, 'total': 0, 'inside': 0, 'outside': 0, 'playmaking': 0, 'athleticism': 0, 'defending': 0, 'rebounding': 0}
 
     else:

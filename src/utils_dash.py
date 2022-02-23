@@ -106,9 +106,9 @@ def _mvp_descr_builder(mvp_name, mvp_position, mvp_data):
     :return:
     """
 
-    rand = np.random.randint(low=0, high=6)
-    rand_excellent = np.random.randint(low=0, high=6)
-    rand_star = np.random.randint(low=0, high=6)
+    rand = np.random.randint(low=0, high=4)
+    rand_excellent = np.random.randint(low=0, high=4)
+    rand_star = np.random.randint(low=0, high=4)
 
     word_excellent = ['phenomenal', 'excellent', 'stellar', 'amazing', 'outstanding']
     word_star = ['icon', 'all-star caliber', 'franchise-player', 'star-player', 'our mvp']

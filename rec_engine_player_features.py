@@ -4,9 +4,11 @@ import time
 from tqdm import tqdm
 import pandas as pd
 
+#load data
 stats = pd.read_csv('playercareerstats.csv').sort_values(by=['PLAYER_ID'])
 playoff_stats = pd.read_csv('data/rec_engine/playoffs_boxscores.csv')
 
+# function to retrieve and convert additional attributes per player
 def further_attributes(player_id, season, minus_exp):
     api_call = commonplayerinfo.CommonPlayerInfo(player_id).get_data_frames()[0]
     weight_player = int(api_call['WEIGHT'].iloc[0]) * 0.45359237 # pounds to kg
@@ -21,6 +23,7 @@ results = []
 teams = {2020:['MIL', 'PHX', 'LAC', 'ATL'], 2019:['LAL', 'MIA', 'DEN', 'BOS'], 2018:['TOR', 'GSW', 'MIL', 'POR'], 2017: ['GSW', 'CLE', 'HOU', 'BOS']} 
 seasons = [2020, 2019, 2018, 2017, 2016]
 
+# get values for all "historic" role players
 for n, season in enumerate(list(teams.keys())):
     teams_season = teams[season]
     for t in tqdm(teams_season):
@@ -28,10 +31,10 @@ for n, season in enumerate(list(teams.keys())):
         players = list(df_team['PLAYER_ID'].unique())
         for p_id in players:
             time.sleep(1)
-            res_player = further_attributes(p_id, seasons[seasons.index(season) + 1], n+2) # want value before the champion seasons
+            res_player = further_attributes(p_id, seasons[seasons.index(season) + 1], n+2) # want value before the champion season
             results.append(res_player)
 
-
+# get values for all current players
 for p_id in tqdm(list(stats['PLAYER_ID'].unique())):
     time.sleep(1)
     res_player = further_attributes(p_id, '2020', 1)
