@@ -35,3 +35,4 @@ The corresponding data along with the names and images displayed in the dashboar
 * Player salaries from https://hoopshype.com/salaries/players/
 * [NBA2k ratings](https://2kmtcentral.com/21/players/collection/)
 * [RAPM Scores](http://nbashotcharts.com/home)
+* [NBA Logo](https://logosmarken.com/nba-logo/)
