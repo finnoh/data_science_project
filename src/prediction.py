@@ -44,7 +44,7 @@ def player_data_for_game(game_id, team_ids):
 
     # loop over theses players to get their career stats
     for player in players_game:
-        print(player)
+        #print(player)
         call_player = playercareerstats.PlayerCareerStats(player_id=str(int(player)), per_mode36="PerGame")
 
         # clean the returned
@@ -85,7 +85,7 @@ def boxscores_for_team(team_id, season_obj):
 
         # sleep and print
         time.sleep(0.5)
-        print(game)
+        #print(game)
 
     # create full dataframe
     team_boxscores = pd.concat(boxscore)
@@ -143,7 +143,7 @@ def player_ability(team_boxscores, team_id):
         list_player.append(tmp)
 
         time.sleep(0.5)
-        print(starter)
+        #print(starter)
 
     # return dataframe
     return pd.concat(list_player)
@@ -306,8 +306,8 @@ def trade_player_function(player_in, player_out, df, scores):
     # player_in = 2544
     # player_out = 203939
 
-    print(player_in)
-    print(player_out)
+    #print(player_in)
+    #print(player_out)
 
     # get name
     player_in_name = df[df['PLAYER_ID'] == player_in]['PLAYER_NAME'].values[0]

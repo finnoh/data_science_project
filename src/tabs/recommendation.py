@@ -7,28 +7,30 @@ team_data = recommmendation_engine.get_teams_data()
 
 
 text_offcanvas = """
-This engine automa
-Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. 
-At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur 
-sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. 
-Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut
-labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum 
-dolor sit amet
+This engine automatically finds the best trade recommendation for a given input player whereas the players presented per team are their current starting five heading into the season.
+Essentially, this model uses the selected attributes (including our own player score) to find the most similar or complementary player in the high-dimensional space.
 
-Satz dass nicht normalisierte, nicht / Min geteielte Werte in Tabelle (auch, warum einige features ausgeblendet werden)
+**1. Similar Player:** in this option, the closest player to the input player in the high-dimensional space is selected.
 
-36 min: game time starter
+**2. Complementary Player:** here, the best four teams from the past four seasons are used as role models to determine the optimal player given the remaining four players of the starting five.
+
+To adjust this decision process, several parameters can be selected which have an influence on the recommendation.
+Apart from the typical L1- and L2-distance measures, the weights for the past three seasons can be selected based on which the attributes are first aggregated and then, normalized to zero mean and unit veriance.
+While the model uses the normalized values for finding the optimal recommmendation, the output table below features the weighted values for 36 minutes (typical game time for a starter)
+
+As a further result of the trade, the season is predicted with the effect of this trade, similar to the *Season Prediction Tab*.
+Finally, the selected attributes are used to compute different lower-dimensional embeddings which are then visualized in a 2D-/ 3D-plot.
 """
 
 
 
 offcanvas = html.Div([html.Div([dbc.Button("Information regarding the usage of the recommendation engine", id="rec-infocanvas", n_clicks=0, style={'background-color': '#17408b', 'color': 'white', 'margin-bottom': '10px'})], 
                                 style = {'width': '100%', 'display': 'flex', 'align-items': 'center', 'justify-content': 'center'}),
-                      html.Div([dbc.Offcanvas([html.P(text_offcanvas)],
+                      html.Div([dbc.Offcanvas([dcc.Markdown(text_offcanvas)],
                                 backdrop=True,
                                 scrollable=True,
                                 id="infocanvas",
-                                title = 'Title',
+                                title = 'Information regarding Recommendation Engine',
                                 is_open=False,
                                 placement='end')], 
                                 style = {'width': '100%', 'display': 'flex', 'justify-content': 'top'})          

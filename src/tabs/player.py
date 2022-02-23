@@ -82,10 +82,10 @@ left_player = dbc.Row(
 
 
 right_player = dcc.Tabs(id="tabs-player-graph", value='tab-1-player-graph', children=[
-    dcc.Tab(label='Hotzone', value='tab-1-player-graph', children=[dcc.Graph(id='hotzone-graph', style={'width': '100%', 'height': '100%'})]),
+    dcc.Tab(label='Hotzone', value='tab-1-player-graph', children=[dcc.Graph(id='hotzone-graph', style={'width': '100%', 'height': '100%', 'margin-left': '30%'})]),
     dcc.Tab(label='Salary', value='tab-2-player-graph', children=[dcc.Graph(id='playerselect-graph2', style={'width': '100%', 'height': '100%'})]),
-    dcc.Tab(label='Player Score', value='tab-3-player-graph', children=[dcc.Graph(id='playerselect-graph1', style={'width': '100%', 'height': '100%'})]),
-    dcc.Tab(label='Player Score (interaction)', value='tab-4-player-graph', children=[dcc.Graph(id='playerselect-graph3', style={'width': '100%', 'height': '100%'})])
+    dcc.Tab(label='Player Score', value='tab-3-player-graph', children=[html.H4('Calculated Player Score (Top 1 percent translates into the top percentile of all players)', style = {'margin-top': '10px'}), dcc.Graph(id='playerselect-graph1', style={'width': '100%', 'height': '100%'})]),
+    dcc.Tab(label='Player Score (interaction)', value='tab-4-player-graph', children=[html.H4('Calculated Player Score incorporating the interaction effects between players (Top 1 percent translates into the top percentile of all players)', style = {'margin-top': '10px'}), dcc.Graph(id='playerselect-graph3', style={'width': '100%', 'height': '100%'})])
 ])
 
 jumbotron_player = dbc.Container(
@@ -127,9 +127,9 @@ draft_pick_performance = html.Div([
 player_mincer_coefs = html.Div(
     dcc.Tabs(value='tab-1', children=
         [
-            dcc.Tab(value='tab-1', label="Top Players and Draft Picks", children=[top_players, draft_pick_performance]
+            dcc.Tab(value='tab-1', label="Top Players and Draft Picks", children=[dcc.Markdown('Table of players according to their performance scores. Below a histogram, displaying these performance percentiles with respect to players draft positon.'), top_players, draft_pick_performance]
             ),
-            dcc.Tab(value='tab-2', label="Mincer Salary Evaluation", children=[mincer]
+            dcc.Tab(value='tab-2', label="Mincer Salary Evaluation", children=[dcc.Markdown('Mincer-analysis of players salaries with respect to their performance. This can be used as a baseline to assess, whether a player is over- or underpaid. There are three different models selectable for the evaluation.'), mincer]
             )
         ]
     )

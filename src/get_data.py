@@ -213,7 +213,7 @@ def get_player_salary(player_id: str):
     tmp['SEASON'] = tmp['variable'].apply(lambda x: int(x.split('/')[0]))
     tmp2 = tmp[tmp['id'] == player_id]
 
-    print(tmp2)
+    #print(tmp2)
 
     return tmp2
 
