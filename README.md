@@ -1,27 +1,13 @@
-# Data Science Project
-Repository for the data science project (DS500)
+# Data Science Project: NBA Dashboard
 
-## Requirements
+This repository hosts the Data Science Project (DS500) of Finn Höner and Tim-Moritz Bündert.
+It contains all the code associated with the project along with the corresponding data.
 
-Bewertet wird das Projekt nach den folgenden Kriterien:
+The dashboard is hosted on [this website](http://193.196.53.114/).
 
-1. Komplexität des Gesamtprojektes
-2. Qualität des Codes
-3. Inhaltlicher Anspruch der untersuchten Fragestellung, Niveau der Umsetzung des inhaltlichen Problems, logische Konsistenz der Fragestellung und Umsetzung
+Larger data files can be accessed on [Google Drive](https://drive.google.com/drive/folders/1nl-O5oP8OEU6t839dVkCwwlSNc3XAY1e?usp=sharing).
 
-Zur Bewertung erstellen die Studierenden die folgenden Komponenten:
-
-- [ ] Eine Präsentation, die die zentrale Fragestellung motiviert, die Relevanz herleitet, und ggf. Bezug auf die relevante Literatur herstellt.
-
-- [ ] Die Studierenden präsentieren im Rahmen der Abschlusspräsentation das fertige „Produkt“, z.B. eine Website (Shiny-App) oder eine vergleichbare Möglichkeit, als Nutzer mit den Daten zu interagieren.
-
-- [ ] Die Studierenden stellen den Code auf GitHub bereit. Der Code muss nachvollziehbar kommentiert sein, und es muss aus dem Code, der Benennung der Dateien, oder einer begleitenden Dokumentation klar hervorgehen, welche Dateien in welcher Reihenfolge ausgeführt werden müssen. Pfade müssen so gesetzt werden, dass keine manuelle Änderung von Pfadnamen notwendig ist, wenn der Code auf anderen Computern ausgeführt wird. Zudem stellen die Studierenden die im Projekt genutzten Daten bereit, im Regelfall durch ein zufälliges (kleines) Sample auf GitHub, dazu den vollständigen Datensatz als FileTransfer (z. B. Dropbox).
-
-- [ ] Studierende stellen das Interface (z. B. Shiny-App) den anderen Studierenden und den Lehrenden zur Verfügung, in dem dieses z. B. in der BWCloud gehostet wird.
-
-- [ ] Die Studierenden erstellen ein kurzes Video (ca. 3 Minuten), das das Projekt und das Ergebnis anschaulich für einen breiteren Kreis von Nutzern darstellt.
-
-## Housekeeping
+## Structure
 Different subfolders and their purposes:
 
 ### data
@@ -38,3 +24,7 @@ Jupyter `.ipynb` notebooks to try stuff out and for coding ideas.
 
 ### src
 Folder for source code, i.e. here we can specify python modules
+
+# Disclaimer
+The corresponding data along with the names and images displayed in the dashboard are not our property. Rather, the following references apply:
+
