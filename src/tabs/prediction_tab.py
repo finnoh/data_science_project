@@ -200,7 +200,7 @@ validation_trade = html.Div([
                                           style_cell={'textAlign': 'center'},
                                           style_as_list_view=True
                                           )], fullscreen=False, type='dot',
-                    color="#119DFF")]), html.H2(id="prediction-mae-v"), dash_table.DataTable(id="prediction-validation-table-v",
+                    color="#119DFF")]), dcc.Markdown(id="prediction-mae-v"), html.H2('Predicted Season Scoreboard'), dash_table.DataTable(id="prediction-validation-table-v",
                                             filter_action="native",
                                             sort_action="native",
                                             sort_mode="multi",
