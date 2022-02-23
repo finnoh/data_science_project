@@ -4,6 +4,7 @@ import time
 from tqdm import tqdm
 import pandas as pd
 
+# function to retireve all 2k attributes from this URL
 def get_2k_attributes(url):
     r = requests.get(url, timeout=2.5)
     r_html = r.text
@@ -29,6 +30,7 @@ def get_2k_attributes(url):
 
     return dict(zip(names, scores))
 
+# retrieve ratings from all pages
 ratings = get_2k_attributes('https://2kmtcentral.com/21/players/collection/325-326-327-328-329-330-331-332-333-334-335-336-337-338-339-340-341-342-343-344-345-346-347-348-349-350-351-352-353-354')
 
 for page in tqdm(range(1, 15)):
@@ -36,6 +38,7 @@ for page in tqdm(range(1, 15)):
     url = f'https://2kmtcentral.com/21/players/collection/325-326-327-328-329-330-331-332-333-334-335-336-337-338-339-340-341-342-343-344-345-346-347-348-349-350-351-352-353-354/page/{page}'
     ratings.update(get_2k_attributes(url))
 
+# store all attributes in the respective lists and convert to dataframe
 col_names = []
 col_total = []
 col_inside = []
@@ -65,4 +68,5 @@ ratings_df['athleticism'] = col_athleticism
 ratings_df['defending'] = col_defending
 ratings_df['rebounding'] = col_rebounding
 
+# export 2k ratings
 ratings_df.to_csv('data/rec_engine/nba2k_ratings.csv', index = False)

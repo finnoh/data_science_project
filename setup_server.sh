@@ -18,6 +18,7 @@ pip install wheel
 pip install -r requirements.txt
 
 sudo ufw enable
+sudo ufw allow 22/tcp
 deactivate
 sudo apt install nginx
 sudo ufw allow 'Nginx HTTP'

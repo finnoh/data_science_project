@@ -1,3 +1,4 @@
+from sre_constants import SUCCESS
 from mplcursors import HoverMode
 from hotzone import hotzone
 import dash
@@ -55,7 +56,8 @@ from src.tabs import player, team, recommendation, mincer_tab, welcome
 #import json
 import io
 from src.tabs import player, team, recommendation, mincer_tab, prediction_tab
-
+from nba_api.stats.endpoints import teamdetails
+import dash.dash_table.FormatTemplate as FormatTemplate
 
 # assume you have a "long-form" data frame
 # see https://plotly.com/python/px-arguments/ for more options
@@ -67,6 +69,8 @@ team_selector = _team_selector()
 player_data = recommmendation_engine.get_players_data()
 team_data = recommmendation_engine.get_teams_data()
 players_stats = recommmendation_engine.get_players_stats()
+players_physical =  recommmendation_engine.get_physical_attributes()
+players_salaries = recommmendation_engine.get_players_salary()
 boxscores_20_21 = recommmendation_engine.get_boxscores('20_21')
 
 
@@ -141,8 +145,6 @@ def pick_hist(value):
     return fig
 
 
-
-
 @app.callback(
     [Output('playerselect-table', 'data'),
      Output('playerselect-table', 'columns'),
@@ -168,7 +170,7 @@ def update_player(value):
     body = f'{weight} kg, {height} m'
     drafted = f'At {draft} in round {draft_round} - {draft_year} \n ({previous})'
 
-    print([weight, height, draft])
+    #print([weight, height, draft])
 
     player_score = get_player_score(player_id=value)
 
@@ -212,6 +214,21 @@ def hotzone_graph(value):
     fig.update_layout(yaxis_visible=False, yaxis_showticklabels=False, xaxis_visible=False, xaxis_showticklabels=False)
     return fig
 
+
+@app.callback(
+    Output('playerselect-output-container-wiki', 'children'),
+    [Input('playerselect-dropdown', 'value')])
+def _player_wiki_summary(value):
+    wiki_wiki = wikipediaapi.Wikipedia('en')
+    df = player_selector
+    name = list(df[df['value'] == value]['label'])[0]
+    page_py = wiki_wiki.page(name)
+    if page_py.exists():
+        return page_py.summary
+    else:
+        return f"No Wikipedia page found for {str(name)}"
+
+
 ####### Tab 2: Team
 @app.callback(
     [Output('teamselect-output-container', 'children'),
@@ -223,14 +240,15 @@ def update_output(value):
 @app.callback(
     [dash.dependencies.Output('teamselect-mvp-image', 'src'),
      dash.dependencies.Output('teamselect-mvp-descr', 'children'),
-     dash.dependencies.Output('teamselect-mvp-name', 'children')],
+     #dash.dependencies.Output('teamselect-mvp-name', 'children')
+     ],
     [dash.dependencies.Input('teamselect-dropdown', 'value')])
 def update_output(value):
     team_id = _get_team_id(value)
     mvp_data, url_image = _get_mvp_id_team(team_id=team_id, season='2020-21')
     mvp_name, mvp_pos = _player_full_name(player_id=mvp_data[0])
     descr = _mvp_descr_builder(mvp_name=mvp_name, mvp_position=mvp_pos, mvp_data=mvp_data)
-    return url_image, descr, mvp_name
+    return url_image, descr#, mvp_name
 
 
 @app.callback(
@@ -274,9 +292,12 @@ def get_team_image(value, season: str = '2021-22'):
     [dash.dependencies.Input('teamselect-dropdown', 'value')])
 def _team_wiki_summary(value):
     wiki_wiki = wikipediaapi.Wikipedia('en')
-    full_name = _team_full_name(value)
+    full_name = list(team_data[team_data['abbreviation'] == value]['full_name'])[0]
     page_py = wiki_wiki.page(full_name)
-    return page_py.summary
+    if page_py.exists():
+        return page_py.summary
+    else:
+        return f"No Wikipedia page found for {str(full_name)}"
 
 
 @app.callback(
@@ -291,17 +312,42 @@ def toggle_offcanvas(n1, is_open):
 
 
 @app.callback(
-    Output('playerselect-output-container-wiki', 'children'),
-    [Input('playerselect-dropdown', 'value')])
-def _player_wiki_summary(value):
-    wiki_wiki = wikipediaapi.Wikipedia('en')
-    df = player_selector
-    name = list(df[df['value'] == value]['label'])[0]
-    page_py = wiki_wiki.page(name)
-    if page_py.exists():
-        return page_py.summary
+    [Output('team_info-1', 'children'),
+     Output('team_info-2', 'children'),
+     Output('team_info-3', 'children'),
+     Output('team_info-4', 'children'),
+     Output('team_info-5', 'children'),
+     Output('team_info-6', 'children'),
+     Output('team_info-7', 'children'),
+     Output('team_info-8', 'children'),
+     Output('team_info-9', 'children'),
+     ],
+    [Input('teamselect-dropdown', 'value')])
+def team_info(value):
+    team = team_data[team_data['abbreviation'] == value]
+    team_id = list(team['id'])[0]
+    location = f"{list(team['city'])[0]} ({list(team['state'])[0]})"
+
+    summary = teamdetails.TeamDetails(team_id = team_id).get_normalized_dict()
+    summary_background = summary['TeamBackground'][0]
+    name = f"{summary_background['NICKNAME']}"
+    year_found = f"{summary_background['YEARFOUNDED']}"
+    arena_cap = summary_background['ARENACAPACITY']
+    if arena_cap is None:
+        arena = f"{summary_background['ARENA']}"
     else:
-        return f"No Wikipedia page found for {str(name)}"
+        arena = f"{summary_background['ARENA']} (Capacity: {int(summary_background['ARENACAPACITY']):,} visitors)"
+    owner = f"{summary_background['OWNER']}"
+    gm = f"{summary_background['GENERALMANAGER']}"
+    headcoach = f"{summary_background['HEADCOACH']}"
+    d_league = f"{summary_background['DLEAGUEAFFILIATION']}"
+    if len(summary['TeamAwardsChampionships']) > 0:
+        championships = [str(c['YEARAWARDED']) for c in summary['TeamAwardsChampionships']]
+        champions = ', '.join(championships)
+    else:
+        champions = 'No NBA championship titles so far.'
+    #{'TEAM_ID': 1610612747, 'ABBREVIATION': 'LAL', 'NICKNAME': 'Lakers', 'YEARFOUNDED': 1948, 'CITY': 'Los Angeles', 'ARENA': 'Crypto.com Arena', 'ARENACAPACITY': '19060', 'OWNER': 'Jerry Buss Family Trust', 'GENERALMANAGER': 'Rob Pelinka', 'HEADCOACH': 'Frank Vogel', 'DLEAGUEAFFILIATION': 'South Bay Lakers'}
+    return name, year_found, location, champions, arena, owner, gm, headcoach, d_league
 
 
 @app.callback(
@@ -311,62 +357,185 @@ def update_output(value):
     return recommmendation_engine.visualize_capspace_team_plotly(value)
 
 
+
+@app.callback(
+    [Output("team-checklist-general", "value"), Output("checklist-team-stats", "value")],
+    [Input("checklist-team-all", "value")],
+    [State("team-checklist-general", "options"), State("checklist-team-stats", "options")],
+)
+def select_all_none(all_group, all, stats):
+    try:
+        if len(all_group) == 0:
+            return [], [] #all, off, off2, defense
+        else:
+            attributes_all = [option["value"] for option in all]
+            attributes_stats = [option["value"] for option in stats]
+            return attributes_all, attributes_stats
+    except TypeError:
+        return [], []
+
+
+@app.callback(
+    [Output("team-checklist-stats1", "value"), Output("team-checklist-stats2", "value"), Output("team-checklist-stats3", "value")],
+    [Input("checklist-team-stats", "value")],
+    [State("team-checklist-stats1", "options"), State("team-checklist-stats2", "options"), State("team-checklist-stats3", "options")],
+)
+def select_all_none(all_selected, options1, options2, options3):
+    if len(all_selected) == 0:
+        return [], [], []
+    else:
+        attributes_1 = []
+        attributes_2 = []
+        attributes_3 = []
+        if 'AllStats' in all_selected:
+            cols1 = ['GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M'] 
+            cols2 = ['FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB']
+            cols3 = ['REB', 'AST', 'STL', 'BLK', 'TOV','PF', 'PTS']
+            for option in options1:
+                if option['value'] in cols1:
+                    attributes_1.append(option["value"])
+                elif option['value'] in cols2:
+                    attributes_2.append(option["value"])
+                elif option['value'] in cols3:
+                    attributes_3.append(option["value"])
+
+            for option in options2:
+                if option['value'] in cols1:
+                    attributes_1.append(option["value"])
+                elif option['value'] in cols2:
+                    attributes_2.append(option["value"])
+                elif option['value'] in cols3:
+                    attributes_3.append(option["value"])
+
+            for option in options3:
+                if option['value'] in cols1:
+                    attributes_1.append(option["value"])
+                elif option['value'] in cols2:
+                    attributes_2.append(option["value"])
+                elif option['value'] in cols3:
+                    attributes_3.append(option["value"])
+            #attributes = attributes = [option["value"] for option in options if option['value'] in def_cols]
+        return list(set(attributes_1)), list(set(attributes_2)), list(set(attributes_3))
+
+
 @app.callback(
     Output('team-table', 'children'),
-    Input('teamselect-dropdown', 'value'))
-def update_output(value):
+    [Input('teamselect-dropdown', 'value'), Input('team-checklist-general', 'value'), Input('team-checklist-stats1', 'value'), Input('team-checklist-stats2', 'value'), Input('team-checklist-stats3', 'value')])
+def update_output(value, cols1, cols2, cols3, cols4):
+    if cols1 is None:
+        cols1 = []
+    if cols2 is None:
+        cols2 = []
+    if cols3 is None:
+        cols3 = []
+    if cols4 is None:
+        cols4 = []
+
+    cols = cols1 + cols2 + cols3 + cols4
 
     result_table = players_stats[(players_stats['TEAM_ABBREVIATION'] == value) & (players_stats['SEASON_ID'] == '2020-21')]
     result_table['id'] = result_table.index 
-    result_table['PLAYER_ID'] = [list(player_data[player_data['id'] == id]['player_names'])[0] for id in list(result_table['PLAYER_ID'].unique())]
+    result_table['Player'] = [list(player_data[player_data['id'] == id]['player_names'])[0] for id in list(result_table['PLAYER_ID'].unique())]
     result_table = result_table.drop(['SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION'], axis=1).sort_values(by=['MIN'], ascending=False)
 
-    print(result_table.head())
-    
+    result_table['Position'] = [list(player_data[player_data['player_names'] == player]['position'])[0] for player in (result_table['Player'].unique())]
+    salaries_21 = [list(players_salaries[players_salaries['id'] == p_id]['2021/22'])[0] for p_id in list(result_table['PLAYER_ID'].unique())]
+    salaries_22 = [list(players_salaries[players_salaries['id'] == p_id]['2022/23'])[0] for p_id in list(result_table['PLAYER_ID'].unique())]
+    salaries_23 = [list(players_salaries[players_salaries['id'] == p_id]['2023/24'])[0] for p_id in list(result_table['PLAYER_ID'].unique())]
+    salaries_24 = [list(players_salaries[players_salaries['id'] == p_id]['2024/25'])[0] for p_id in list(result_table['PLAYER_ID'].unique())]
+    result_table['Salary 21/22'] = salaries_21
+    result_table['Salary 22/23'] = salaries_22
+    result_table['Salary 23/24'] = salaries_23
+    result_table['Salary 24/25'] = salaries_24
+
+    experiences = [list(players_physical[(players_physical['player_id'] == p_id) & (players_physical['Season'] == 2020)]['Experience'])[0] for p_id in list(result_table['PLAYER_ID'].unique())]
+    heights = [list(players_physical[(players_physical['player_id'] == p_id) & (players_physical['Season'] == 2020)]['Height (cm)'])[0] for p_id in list(result_table['PLAYER_ID'].unique())]
+    weights = [list(players_physical[(players_physical['player_id'] == p_id) & (players_physical['Season'] == 2020)]['Weight (kg)'])[0] for p_id in list(result_table['PLAYER_ID'].unique())]
+    result_table['Experience'] = experiences
+    result_table['Height'] = heights
+    result_table['Weight'] = weights
+
+    result_table['Height'] = result_table['Height'].apply(lambda x: round(x, 1))
+    result_table['Weight'] = result_table['Weight'].apply(lambda x: round(x, 1))
+
+
+    #print(result_table.head())
+    if cols == []:
+        result_table = result_table.loc[:, ['Player', 'Position']]
+
+    else:
+        cols = cols1 + cols2 + cols3 + cols4
+        cols_sel = ['Player', 'Position'] + cols
+        result_table = result_table[cols_sel]
+        #print(cols)
+
+    result_table['id'] = result_table.index 
     columns = [{"name": i, "id": i} for i in result_table.columns]
+
+    result_table.rename({'PLAYER_AGE': 'Age'}, axis=1, inplace=True)
+
+
     data = result_table.to_dict('records')
 
-    tooltip_columns = {'player': 'Player name', 
-                       'distance': 'Overall distance over all selected attributes',
+    tooltip_columns = {'Player': 'Player name', 
                        'Age': 'Age of player',
-                       'Priced': 'Over-/under-priced according to Mincer model', 
-                       'Luxury Tax': 'Sum of luxury tax (in $) over next four seasons',
+                       #'Priced': 'Over-/under-priced according to Mincer model', 
+                       # 'Score': 'Computed player score for the season 2020/21',
+                       'GS' : 'Games started',
+                       'GP' : 'Games played',
+                       'MIN': 'Minutes playes',
                        'FGM': 'Field Goals Made',
-                       'FG3_PCT': '3-point Percentage',
+                       'FG3_PCT': 'Percentage of made 3-point Shots',
                        'FGA': 'Field Goals Attempted',
                        'FG3M': '3-point Shots Made',
                        'FTM': 'Free Throws Made',
                        'FG3A': '3-point Shots Attempted',
-                       'FG_PCT': 'Field Goals Percentage',
-                       'FT_PCT': 'Free Throws Percentage',
+                       'FG_PCT': 'Percentage of made 3-point Field Goals',
+                       'FT_PCT': 'Percentage of made 3-point Free Throws',
                        'TOV': 'Turnovers',
-                       'FTA': 'Free throws attempted',
+                       'FTA': 'Free Throws Attempted',
                        'AST': 'Assists',
                        'PTS': 'Points',
-                       'OREB': 'Offensive rebounds',
-                       'DREB': 'Defensive rebounds',
-                       'PF': 'Personal fouls',
+                       'OREB': 'Offensive Rebounds',
+                       'DREB': 'Defensive Rebounds',
+                       'PF': 'Personal Fouls',
                        'STL': 'Steals',
                        'BLK': 'Blocked Shots',
                        'REB': 'Total Rebounds',
                        'Height': 'Height (in cm)',
                        'Weight': 'Weight (in kg)',
                        'Experience': 'Years in the league',
-                       'Score': 'Player score computed on stints',
-                       'Athleticism': 'XXXX',
-                       'Playmaking': 'XXXX'}
+                       'Position': 'Position of player',
+                       'Salary 21/22': 'Salary of player in the season 2021/2022',
+                       'Salary 22/23': 'Salary of player in the season 2022/2023',
+                       'Salary 23/24': 'Salary of player in the season 2023/2024',
+                       'Salary 24/25': 'Salary of player in the season 2024/2025'
+                       }
+
+    column_styles = []
+    for i in result_table.columns:
+        if i == 'id':
+            continue
+        if 'Salary' in i:
+            column_styles.append({'name': i, 'id': i, 'type': 'numeric', 'format': FormatTemplate.money(0)})
+        else:
+            column_styles.append({'name': i, 'id': i})
 
     dt = dash_table.DataTable(
         data = data,
-        columns=[{'name': i, 'id': i} for i in result_table.columns if i != 'id'],
-        #tooltip_header={i:tooltip_columns[i] for i in list(result_table.columns) if i != 'id'},
+        columns=column_styles,
+        tooltip_header={i:tooltip_columns[i] for i in list(result_table.columns) if i != 'id'},
+        style_data_conditional=team.highlight_max_col(result_table),
         sort_action="native",
-        style_cell={'minWidth': '75px'},
+        style_cell={'minWidth': '75px', 'textAlign': 'center'},
         style_table={'overflowX': 'auto', 'minWidth': '100%'},
+        fill_width=False,
         fixed_columns = {'headers':True, 'data':1},
-    )
+    )           
 
     return dt
+
+
 
 
 ####### Tab 3: Recommendation
@@ -570,23 +739,29 @@ def update_image_repTeam(value):
     Output('btn_1', 'n_clicks'), Output('btn_2', 'n_clicks'), Output('btn_3', 'n_clicks'), Output('btn_4', 'n_clicks'), Output('btn_5', 'n_clicks'), Output('pos_img', 'data'), 
     Output('alert-triggered', 'data'),
     Output('alert-features-triggered', 'data'),
-    Output('playerRec-stats', 'data')],
+    Output('playerRec-stats', 'data'),
+    Output('rec-cols-sel', 'data')],
     [Input('teamRec-select-dropdown', 'value'), State('recommendation-type', 'value'), State('recommendation-distance', 'value'),
      State("checklist-all-details", "value"), State("checklist-off-details", "value"), State("checklist-off2-details", "value"), State("checklist-def-details", "value"),
      Input('btn_1', 'n_clicks'), Input('btn_2', 'n_clicks'), Input('btn_3', 'n_clicks'), Input('btn_4', 'n_clicks'), Input('btn_5', 'n_clicks')],
-     State('weight1', 'value'), State('weight2', 'value'), State('weight3', 'value'), Input('alert-triggered', 'data'), Input('alert-features-triggered', 'data'), Input('mincer-rec-dropdown', 'value')
-     )
+     State('weight1', 'value'), State('weight2', 'value'), State('weight3', 'value'), State('alert-triggered', 'data'), State('alert-features-triggered', 'data'), State('mincer-rec-dropdown', 'value')
+    )
 def selected_player(team, rec_type, dist_m, cols_all, cols_off, cols_off2, cols_def, b1, b2, b3, b4, b5, w1, w2, w3, weights_error, features_error, mincer_option):  
+    if (b1 is None) and (b2 is None) and (b3 is None) and (b4 is None):
+        return dash.no_update, '', None, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, 0, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        
+    if len(cols_all) + len(cols_off) + len(cols_off2) + len(cols_def) == 0:
+        features_error = True
+        return dash.no_update, '', None, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, 0, dash.no_update, features_error, dash.no_update, dash.no_update
+    else:
+        features_error = False
+
     players_team = recommmendation_engine.starting_five(boxscores_20_21, team, names=True)
     weights = [w1/100, w2/100, w3/100] #[7/10, 2/10, 1/10]
 
     if (rec_type == 'Fit') & len(set(['Playmaking', 'Athleticism', 'Score']).intersection(set(cols_all))) > 0:
-        features_error = True
-        print(features_error)
-        return 0, 0, 0, None, None, None, None, None, 0, False, features_error, 0 # data, columns
-    
-    else:
-        features_error = False
+        for att in list(set(['Playmaking', 'Athleticism', 'Score']).intersection(set(cols_all))):
+            cols_all.remove(att)
 
     if w1 + w2 + w3 != 100: # add??
         weights_error = True
@@ -618,6 +793,7 @@ def selected_player(team, rec_type, dist_m, cols_all, cols_off, cols_off2, cols_
         rep_player = list(players_team.keys())[3]
         pos = 1
         
+
     cols = cols_all + cols_off + cols_off2 + cols_def
 
     #if 'PLAYER_AGE' in cols:
@@ -647,6 +823,9 @@ def selected_player(team, rec_type, dist_m, cols_all, cols_off, cols_off2, cols_
 
     players = list(result_table['player'])
     ids = [list(player_data[player_data['player_names'] == player]['id'])[0] for player in players]
+    positions = [list(player_data[player_data['player_names'] == player]['position'])[0] for player in players]
+    result_table['PLAYER_ID'] = ids
+    result_table['Position'] = positions
 
     results_player = [] # {p: round(list(df_salary[df_salary['id'] == p]['Predicted'])[0], 2) for p in players}
     for p in ids:
@@ -655,9 +834,25 @@ def selected_player(team, rec_type, dist_m, cols_all, cols_off, cols_off2, cols_
         except:
             results_player.append(0.0)
 
+    result_table = result_table[['PLAYER_ID', 'player', 'distance', 'luxury_tax', 'Position']]
+    stats_agg, _ = recommmendation_engine.aggregate_data(players_stats, w = weights, cols = sel_col+cols, norm=False, output_table=True)
+    stats_agg = stats_agg.drop(['SEASON_ID', 'LEAGUE_ID','TEAM_ID'], axis=1)
+    for col in list(stats_agg.columns)[2:]:
+        if col in ['PLAYER_ID', 'TEAM_ABBREVIATION']:
+            continue
+        if col == 'Score':
+            stats_agg['Score'] = stats_agg['Score'].apply(lambda x: round(x, 5))
+        else:
+            stats_agg[col] = stats_agg[col].apply(lambda x: round(x, 2))
+
+    result_table = pd.merge(result_table, stats_agg, how="left", on=["PLAYER_ID"])
+    result_table = result_table.drop(['PLAYER_ID'], axis=1)
+
+    ordered_cols = ['player', 'TEAM_ABBREVIATION', 'Position', 'distance', 'luxury_tax'] + cols
+    result_table = result_table[ordered_cols]
 
     # formatting the table
-    result_table.rename({'luxury_tax': 'Luxury Tax'}, axis=1, inplace=True)
+    result_table.rename({'luxury_tax': 'Luxury Tax', 'TEAM_ABBREVIATION': 'Team', 'player': 'Player', 'distance': 'Distance', 'Athleticism': 'Athleticism (2k)', 'Playmaking': 'Playmaking (2k)' }, axis=1, inplace=True)
     if 'HEIGHT' in cols:
         result_table.rename({'HEIGHT': 'Height'}, axis=1, inplace=True)
     if 'WEIGHT' in cols:
@@ -666,64 +861,79 @@ def selected_player(team, rec_type, dist_m, cols_all, cols_off, cols_off2, cols_
         result_table.rename({'EXPERIENCE': 'Experience'}, axis=1, inplace=True)
     if 'PLAYER_AGE' in cols:
         result_table.rename({'PLAYER_AGE': 'Age'}, axis=1, inplace=True)
-        result_table['Age'] = [list(players_stats[(players_stats['PLAYER_ID'] == p) & (players_stats['SEASON_ID'] == '2020-21')]['PLAYER_AGE'])[0] for p in ids]
+        #result_table['Age'] = [list(players_stats[(players_stats['PLAYER_ID'] == p) & (players_stats['SEASON_ID'] == '2020-21')]['PLAYER_AGE'])[0] for p in ids]
     
-    result_table.distance = result_table.distance.round(2)
+    result_table['Distance'] = result_table['Distance'].apply(lambda x: round(x, 3))
     result_table['id'] = result_table.index 
-    result_table.insert(2, "Priced", results_player) ## ???
+    result_table.insert(4, "Priced", results_player)
+    result_table['Luxury Tax'] = result_table['Luxury Tax'].clip(lower=0)
 
     columns = [{"name": i, "id": i} for i in result_table.columns]
     data = result_table.to_dict('records')
 
-    tooltip_columns = {'player': 'Player name', 
-                       'distance': 'Overall distance over all selected attributes',
+    tooltip_columns = {'Player': 'Player name', 
+                       'Distance': 'Total distance over all selected attributes',
                        'Age': 'Age of player',
                        'Priced': 'Over-/under-priced according to Mincer model', 
-                       'Luxury Tax': 'Sum of luxury tax (in $) over next four seasons',
-                       'FGM': 'Field Goals Made',
-                       'FG3_PCT': '3-point Percentage',
-                       'FGA': 'Field Goals Attempted',
-                       'FG3M': '3-point Shots Made',
-                       'FTM': 'Free Throws Made',
-                       'FG3A': '3-point Shots Attempted',
-                       'FG_PCT': 'Field Goals Percentage',
-                       'FT_PCT': 'Free Throws Percentage',
-                       'TOV': 'Turnovers',
-                       'FTA': 'Free throws attempted',
-                       'AST': 'Assists',
-                       'PTS': 'Points',
-                       'OREB': 'Offensive rebounds',
-                       'DREB': 'Defensive rebounds',
-                       'PF': 'Personal fouls',
-                       'STL': 'Steals',
-                       'BLK': 'Blocked Shots',
-                       'REB': 'Total Rebounds',
+                       'Luxury Tax': 'Sum of approximate luxury tax over next four seasons',
+                       'FGM': 'Field Goals Made per game (36 min.)',
+                       'FG3_PCT': 'Percentage of made 3-point Shots',
+                       'FGA': 'Field Goals Attempted per game (36 min.)',
+                       'FG3M': '3-point Shots Made per game (36 min.)',
+                       'FTM': 'Free Throws Made per game (36 min.)',
+                       'FG3A': '3-point Shots Attempted per game (36 min.)',
+                       'FG_PCT': 'Percentage of made 3-point Field Goals',
+                       'FT_PCT': 'Percentage of made 3-point Free Throws',
+                       'TOV': 'Turnovers per game (36 min.)',
+                       'FTA': 'Free Throws Attempted per game (36 min.)',
+                       'AST': 'Assists per game (36 min.)',
+                       'PTS': 'Points per game (36 min.)',
+                       'OREB': 'Offensive Rebounds per game (36 min.)',
+                       'DREB': 'Defensive Rebounds per game (36 min.)',
+                       'PF': 'Personal Fouls per game (36 min.)',
+                       'STL': 'Steals per game (36 min.)',
+                       'BLK': 'Blocked Shots per game (36 min.)',
+                       'REB': 'Total Rebounds per game (36 min.)',
                        'Height': 'Height (in cm)',
                        'Weight': 'Weight (in kg)',
                        'Experience': 'Years in the league',
-                       'Score': 'Player score computed on stints',
-                       'Athleticism': 'XXXX',
-                       'Playmaking': 'XXXX'}
+                       'Score': 'Computed player score for the season 2020/21',
+                       'Athleticism (2k)': 'Athleticism according to the NBA2k rating',
+                       'Playmaking (2k)': 'Playmaking ability according to the NBA2k rating',
+                       'Team': 'Team of player',
+                       'Position': 'Position of player'}
+
+    column_styles = []
+    for i in result_table.columns:
+        if i == 'id':
+            continue
+        if (i == 'Priced') or (i == 'Luxury Tax'):
+            column_styles.append({'name': i, 'id': i, 'type': 'numeric', 'format': FormatTemplate.money(0)})
+        else:
+            column_styles.append({'name': i, 'id': i})
 
     dt = dash_table.DataTable(
             data = data,
-            columns=[{'name': i, 'id': i} for i in result_table.columns if i != 'id'],
+            #columns=[{'name': i, 'id': i} for i in result_table.columns if i != 'id'],
+            columns = column_styles,
             style_data_conditional=recommendation.highlight_max_col(result_table),
             tooltip_header={i:tooltip_columns[i] for i in list(result_table.columns) if i != 'id'},
             sort_action="native",
-            style_cell={'minWidth': '100px'},
+            style_cell={'minWidth': '100px', 'textAlign': 'center'},
             style_table={'overflowX': 'auto', 'minWidth': '100%'},
             fixed_columns = {'headers':True, 'data':1},
         )
 
-    players_plot = list(result_table['player'])
+    players_plot = list(result_table['Player'])
     #players_plot.insert(0, rep_player)
 
     #print(result_table)
     #print(players_plot)
     #print()
 
-    return r, dt, players_plot, b1, b2, b3, b4, b5, pos, weights_error, features_error, stats_agg.to_json() # data, columns
+    cols_output = sel_col+cols
+
+    return r, dt, players_plot, b1, b2, b3, b4, b5, pos, weights_error, features_error, stats_agg.to_json(), cols_output # data, columns
 
 #stats_agg, stats_agg_notTransformed = aggregate_data(players_stats, [7/10, 2/10, 1/10], ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT'])
 
@@ -761,9 +971,12 @@ def toggle_alert(b1, b2, b3, b4, b5, triggered, is_open):
     [Input('teamRec-player-dropdown', 'children'),
      Input('pos_img', 'data')])
 def update_image_recPlayer(player, pos):
+    if player is None:
+        raise dash.exceptions.PreventUpdate
     player_id = list(player_data[player_data['player_names'] == player]['id'])[0]
     player_team = list(player_data[player_data['player_names'] == player]['team'])[0]
     player_pos = list(player_data[player_data['player_names'] == player]['position'])[0]
+
 
     pos = int(pos)
     img1 = ''
@@ -792,7 +1005,7 @@ def update_image_recPlayer(player, pos):
     elif pos == 4:
         img4 = f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png"
         cap4 = output_str
-    else:
+    elif pos == 4:
         img5 = f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png"
         cap5 = output_str
 
@@ -815,6 +1028,15 @@ def update_image_recPlayer(children):
 '''
 
 
+@app.callback(
+    Output("checklist-all-details", "options"),
+    Input("recommendation-type", "value"),
+)
+def all_att(type_rec):
+    if type_rec == 'Fit':
+        return [{"label": " Player Age", "value": "PLAYER_AGE"},{"label": " Weight", "value": "WEIGHT"},{"label": " Height", "value": "HEIGHT"}, {"label": " Experience", "value": "EXPERIENCE"}]
+    else: 
+        return [{"label": " Player Age", "value": "PLAYER_AGE"},{"label": " Weight", "value": "WEIGHT"},{"label": " Height", "value": "HEIGHT"}, {"label": " Experience", "value": "EXPERIENCE"}, {"label": " Player Score", "value": "Score"}, {"label": " Athleticism (2k)", "value": "Athleticism"}, {"label": " Playmaking (2k)", "value": "Playmaking"}]
 
 @app.callback(
     [Output("checklist-all-details", "value"), Output("checklist-off", "value"), Output("checklist-def", "value")],
@@ -822,13 +1044,16 @@ def update_image_recPlayer(children):
     [State("checklist-all-details", "options"), State("checklist-off", "options"), State("checklist-def", "options")],
 )
 def select_all_none(all_group, all, off, defense):
-    if len(all_group) == 0:
-        return [], [], [] #all, off, off2, defense
-    else:
-        attributes_all = [option["value"] for option in all]
-        attributes_off = [option["value"] for option in off]
-        attributes_def = [option["value"] for option in defense]  
-        return attributes_all, attributes_off, attributes_def
+    try:
+        if len(all_group) == 0:
+            return [], [], [] #all, off, off2, defense
+        else:
+            attributes_all = [option["value"] for option in all]
+            attributes_off = [option["value"] for option in off]
+            attributes_def = [option["value"] for option in defense]  
+            return attributes_all, attributes_off, attributes_def
+    except TypeError:
+        return [], [], [] 
 
 
 @app.callback(
@@ -938,10 +1163,46 @@ def select_all_none(all_selected, options):
 
 
 @app.callback(
+    [Output("rec-dimreduction-dim", "options"), Output("rec-dimreduction-type", "options"), Output('alert-emb-triggered', 'data')],
+    [Input("rec-cols-sel", "data"), State('alert-emb-triggered', 'data'), Input('rec-dimreduction-dim', 'value')]
+)
+def all_att(cols, status, dim):
+    if cols is None:
+        cols = []
+    if len(cols) == 9:
+        return [], [], True
+    elif len(cols) == 10: #8 standard + 2 selected columns
+        return [{'label': '2D', 'value': 2}], [], False
+    elif (len(cols) == 11) & (int(dim) == 3): #8 standard + 3 selected columns
+        print('heree')
+        return [{'label': '2D', 'value': 2},{'label': '3D', 'value': 3}], [], False
+    else: 
+        return [{'label': '2D', 'value': 2},{'label': '3D', 'value': 3}], [{'label': 'Spectral Embedding', 'value': 'spectral'},{'label': 'TSNE', 'value': 'tsne'},{'label': 'UMAP', 'value': 'umap'},{'label': 'PCA', 'value': 'pca'}], False
+
+
+@app.callback(
+    Output("alert-emb", "is_open"),
+    [Input('btn_1', 'n_clicks'), Input('btn_2', 'n_clicks'), Input('btn_3', 'n_clicks'), Input('btn_4', 'n_clicks'), Input('btn_5', 'n_clicks'),
+     State("alert-emb", "is_open"), Input("alert-emb-triggered", "data"), Input('players-recommended', 'data')]
+)
+def toggle_alert(b1, b2, b3, b4, b5, is_open, triggered, players):
+    if players is None:
+        return False
+
+    return triggered
+
+@app.callback(
     Output('rec-dimreduction-graph1', 'figure'),
-    [Input('rec-dimreduction-type', 'value'), Input('rec-dimreduction-dim', 'value'), Input('players-recommended', 'data')])
-def get_emb(dim_type, dim, players):
-    stats_agg, stats_agg_notTransformed = recommmendation_engine.aggregate_data(players_stats, w = [7/10, 2/10, 1/10])
+    [Input('rec-dimreduction-type', 'value'), Input('rec-dimreduction-dim', 'value'), Input('players-recommended', 'data'), Input('rec-cols-sel', 'data'),
+     State('weight1', 'value'), State('weight2', 'value'), State('weight3', 'value')])
+def get_emb(dim_type, dim, players, cols_sel, w1, w2, w3):
+    if players is None:
+        return {'data': []} 
+
+    if len(cols_sel) == 9: #8 standard + 1 selected column
+        return {'data': []} 
+
+    stats_agg, stats_agg_notTransformed = recommmendation_engine.aggregate_data(players_stats, w = [w1/100, w2/100, w3/100], cols = cols_sel)
     players_stats_emb, _, positions, data_names, player_stats = recommmendation_engine.embeddings(dim_type, stats_agg, stats_agg_notTransformed, int(dim)) # player
     name_emb = {'spectral': 'Sepectral Embedding', 'tsne': 'TSNE', 'umap': 'UMAP', 'pca': 'PCA'}
 
@@ -954,12 +1215,44 @@ def get_emb(dim_type, dim, players):
         else:
             labels[ind_player] = 'Recommendations'
 
-    #print('Here:', players)
 
     color_discrete_map = {'G': 'rgb(144,132,132)', 'F': 'rgb(203,197,197)', 'C': 'rgb(101,85,85)', 'Recommendations': 'rgb(66,171,59)', players[0]: 'rgb(250,49,69)'}
 
+    players_stats_emb['labels'] = labels
+
+    if len(cols_sel) == 10:
+        stats_agg['labels'] = labels
+        fig = px.scatter(stats_agg, x=cols_sel[8], y=cols_sel[9], color = 'labels', symbol = 'labels', hover_name = data_names, 
+                        #color_discrete_sequence=["red", "green", "blue", "orange", "black"],
+                        color_discrete_map=color_discrete_map,
+                        #hover_data={'embedding_1':False, 
+                        #            'embedding_2':False, 
+                        #            'Position': positions,
+                        #            'Age': player_stats['PLAYER_AGE'],
+                        #            'Points': (':.3f', player_stats['PTS']),
+                        #            '3P PCT': (':.3f', player_stats['FG3_PCT']), 
+                        #            'Assists': (':.3f', player_stats['AST']),
+                        #            'Rebounds': (':.3f', player_stats['REB'])
+                        #            },
+                        labels={cols_sel[8]: cols_sel[8], cols_sel[9]: cols_sel[9]}, title=f"{cols_sel[8]} and {cols_sel[9]} Representation of NBA players")
+        fig.update_layout(legend_title_text = '<b>Positions / Players</b>')
+        fig.update_layout(transition_duration=500, template='simple_white')
+        fig.update_traces(hoverinfo='none', hovertemplate='')
+        return fig
+
+    if (len(cols_sel) == 11) & (int(dim) == 3):
+        stats_agg['labels'] = labels
+        fig = px.scatter_3d(stats_agg, x=cols_sel[8], y=cols_sel[9], z = cols_sel[10], color = 'labels', symbol = 'labels', hover_name = data_names, 
+                            color_discrete_map=color_discrete_map,
+                            labels={cols_sel[8]: cols_sel[8], cols_sel[9]: cols_sel[9], cols_sel[10]: cols_sel[10]}, title=f"{cols_sel[8]}, {cols_sel[9]} and {cols_sel[10]} Representation of NBA players")
+        fig.update_layout(legend_title_text = '<b>Positions / Players</b>')
+        fig.update_layout(transition_duration=500, template='simple_white')
+        fig.update_traces(hoverinfo='none', hovertemplate='')
+        return fig
+
+
     if int(dim) == 2:
-        fig = px.scatter(players_stats_emb, x="embedding_1", y="embedding_2", color = labels, hover_name = data_names, 
+        fig = px.scatter(players_stats_emb, x="embedding_1", y="embedding_2", color = 'labels', symbol = 'labels', hover_name = data_names, 
                         #color_discrete_sequence=["red", "green", "blue", "orange", "black"],
                         color_discrete_map=color_discrete_map,
                         #hover_data={'embedding_1':False, 
@@ -978,7 +1271,7 @@ def get_emb(dim_type, dim, players):
 
     
     if int(dim) == 3:
-        fig = px.scatter_3d(players_stats_emb, x="embedding_1", y="embedding_2", z = "embedding_3", color = labels, #hover_name = data_names, 
+        fig = px.scatter_3d(players_stats_emb, x="embedding_1", y="embedding_2", z = "embedding_3", color = 'labels', symbol = 'labels', hover_name = data_names, 
                         #color_discrete_sequence=["red", "green", "blue", "orange", "black"],
                         color_discrete_map=color_discrete_map,
                         #hover_data={'embedding_1':False, 
@@ -1013,34 +1306,34 @@ def display_hover(hoverData, df):
     # demo only shows the first point, but other points may also be available
     pt = hoverData["points"][0]
     bbox = pt["bbox"]
-    num = pt["pointNumber"]
-
-    #print(hoverData)
+    #num = pt["pointNumber"]
 
     df = pd.read_json(df)
 
     name = pt['hovertext']
-    player_id = list(player_data[player_data['player_names'] == name]['id'])[0]
+    player_id = list(player_data[player_data['player_names'] == name]['id'])[0] #df.iloc[int(num),:]['PLAYER_ID']
 
     df_row = df[df['PLAYER_ID'] == player_id] #df.iloc[num]
     img_src = f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png"
 
-    age = list(players_stats[(players_stats['PLAYER_ID'] == player_id) & (players_stats['SEASON_ID'] == '2020-21')]['PLAYER_AGE'])[0]
-    points = df_row['PTS'].iloc[0]
-    P3PCT = df_row['FG3_PCT'].iloc[0]
-    Assists = df_row['AST'].iloc[0]
-    Rebounds = df_row['REB'].iloc[0]
+    #age = list(players_stats[(players_stats['PLAYER_ID'] == player_id) & (players_stats['SEASON_ID'] == '2020-21')]['PLAYER_AGE'])[0]
+    team = list(player_data[player_data['player_names'] == name]['team'])[0]
+    pos = list(player_data[player_data['player_names'] == name]['position'])[0]
+    #points = df_row['PTS'].iloc[0]
+    #P3PCT = df_row['FG3_PCT'].iloc[0]
+    #Assists = df_row['AST'].iloc[0]
+    #Rebounds = df_row['REB'].iloc[0]
 
     children = [
         html.Div([
             html.Img(src=img_src, style={"width": "100%"}),
-            html.P(f"{name}", style={"color": "darkblue"}),
-            html.P(f"{int(age)} years old", style={"color": "black"}),
-            html.P(f"Points: {np.round((points), 2)}", style={"color": "black"}),
-            html.P(f"3P-PCT: {np.round((P3PCT), 2)}", style={"color": "black"}),
-            html.P(f"Assists: {np.round((Assists), 2)}", style={"color": "black"}),
-            html.P(f"Rebounds: {np.round((Rebounds), 2)}", style={"color": "black"}),
-        ], style={'width': '200px'})
+            html.P(f"{name} ({team}, {pos})", style={"color": "darkblue"}),
+            #html.P(f"{int(age)} years old", style={"color": "black"}),
+            #html.P(f"Points: {np.round((points), 2)}", style={"color": "black"}),
+            #html.P(f"3P-PCT: {np.round((P3PCT), 2)}", style={"color": "black"}),
+            #html.P(f"Assists: {np.round((Assists), 2)}", style={"color": "black"}),
+            #html.P(f"Rebounds: {np.round((Rebounds), 2)}", style={"color": "black"}),
+        ], style={'width': '250px'})
     ]
 
     return True, bbox, children
