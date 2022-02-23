@@ -781,11 +781,11 @@ def update_image_repTeam(value):
     )
 def selected_player(team, rec_type, dist_m, cols_all, cols_off, cols_off2, cols_def, b1, b2, b3, b4, b5, w1, w2, w3, weights_error, features_error, mincer_option):  
     if (b1 is None) and (b2 is None) and (b3 is None) and (b4 is None):
-        return dash.no_update, '', None, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, 0, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        return dash.no_update, '', None, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, 0, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
         
     if len(cols_all) + len(cols_off) + len(cols_off2) + len(cols_def) == 0:
         features_error = True
-        return dash.no_update, '', None, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, 0, dash.no_update, features_error, dash.no_update, dash.no_update
+        return dash.no_update, '', None, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, 0, dash.no_update, features_error, dash.no_update, dash.no_update, dash.no_update
     else:
         features_error = False
 
