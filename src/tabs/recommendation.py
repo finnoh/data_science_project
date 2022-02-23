@@ -20,6 +20,8 @@ While the model uses the normalized values for finding the optimal recommmendati
 
 As a further result of the trade, the season is predicted with the effect of this trade, similar to the *Season Prediction Tab*.
 Finally, the selected attributes are used to compute different lower-dimensional embeddings which are then visualized in a 2D-/ 3D-plot.
+
+One recommendation using the *similar* option takes roughly 30 seconds while the *complementary* option requires roughly one minute.
 """
 
 
@@ -42,7 +44,7 @@ recommendation_type = html.Div([dcc.RadioItems(
                                             options=[{'label': ' Similar player', 'value': 'Similar'},
                                                      {'label': ' Complementary player', 'value': 'Fit'}],
                                             value='Similar'
-                                        )], style={'width': '50%'}
+                                        )], style={'width': '30%'}
                                     )
 
 recommendation_distance = html.Div([dcc.RadioItems(
