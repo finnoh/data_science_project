@@ -1071,7 +1071,7 @@ def update_image_recPlayer(player, pos):
     elif pos == 4:
         img4 = f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png"
         cap4 = output_str
-    elif pos == 4:
+    elif pos == 5:
         img5 = f"https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/{str(player_id)}.png"
         cap5 = output_str
 
