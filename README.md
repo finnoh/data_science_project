@@ -19,8 +19,8 @@ Later on this can be used for style elements such as `.css` files or images.
 ### notes
 Folder containing notes in `.md` format and their generated PDFs.
 
-### noteboooks
-Jupyter `.ipynb` notebooks to try stuff out and for coding ideas.
+### backlog
+Notebooks and further files which were used to construct intermediate results, but not relevant for production.
 
 ### src
 Folder for source code, i.e. here we can specify python modules
@@ -30,7 +30,7 @@ The corresponding data along with the names and images displayed in the dashboar
 * [NBA](https://www.nba.com/termsofuse), in particular 
     - Images of teams: http://i.cdn.turner.com/nba/nba/.element/img/1.0/teamsites/logos/teamlogos_500x500/....png
     - Images of players: https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/....png
-* [NBA_API](NBA API https://github.com/swar/nba_api)
+* [NBA_API](https://github.com/swar/nba_api)
 * Team salaries from https://www.spotrac.com/nba/cap/
 * Player salaries from https://hoopshype.com/salaries/players/
 * [NBA2k ratings](https://2kmtcentral.com/21/players/collection/)
