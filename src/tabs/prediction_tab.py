@@ -65,7 +65,7 @@ buttons_trade = dbc.Row([dbc.Col(html.Div([dcc.Dropdown(
     id='pred-dd1',
     options=[{'label': player, 'value': player_selector.iloc[i, 1]} for i, player in
              enumerate(player_selector.label.unique())],
-    placeholder='Select a Player',
+    placeholder='No Trade',
     value="No Trade", style={'width': '100%'}
 )],
     style={'width': '100%', 'display': 'flex', 'align-items': 'center',
@@ -74,7 +74,7 @@ buttons_trade = dbc.Row([dbc.Col(html.Div([dcc.Dropdown(
         id='pred-dd2',
         options=[{'label': player, 'value': player_selector.iloc[i, 1]} for i, player in
                  enumerate(player_selector.label.unique())],
-        placeholder='Select a Player',
+        placeholder='No Trade',
         value="No Trade", style={'width': '100%'}
     )],
         style={'width': '100%', 'display': 'flex', 'align-items': 'center',
@@ -83,7 +83,7 @@ buttons_trade = dbc.Row([dbc.Col(html.Div([dcc.Dropdown(
         id='pred-dd3',
         options=[{'label': player, 'value': player_selector.iloc[i, 1]} for i, player in
                  enumerate(player_selector.label.unique())],
-        placeholder='Select a Player',
+        placeholder='No Trade',
         value="No Trade", style={'width': '100%'}
     )],
         style={'width': '100%', 'display': 'flex', 'align-items': 'center',
@@ -92,7 +92,7 @@ buttons_trade = dbc.Row([dbc.Col(html.Div([dcc.Dropdown(
         id='pred-dd4',
         options=[{'label': player, 'value': player_selector.iloc[i, 1]} for i, player in
                  enumerate(player_selector.label.unique())],
-        placeholder='Select a Player',
+        placeholder='No Trade',
         value="No Trade", style={'width': '100%'}
     )],
         style={'width': '100%', 'display': 'flex', 'align-items': 'center',
@@ -101,14 +101,12 @@ buttons_trade = dbc.Row([dbc.Col(html.Div([dcc.Dropdown(
         id='pred-dd5',
         options=[{'label': player, 'value': player_selector.iloc[i, 1]} for i, player in
                  enumerate(player_selector.label.unique())],
-        placeholder='Select a Player',
+        placeholder='No Trade',
         value="No Trade", style={'width': '100%'}
     )],
         style={'width': '100%', 'display': 'flex', 'align-items': 'center',
                'justify-content': 'center'})),
 ], style={'margin-bottom': '10px'})
-
-execute_trade = html.Button('GO', id='exec-btn_1')
 
 # top_card_rec = dbc.Card(
 #     [dcc.Dropdown(
@@ -133,22 +131,80 @@ execute_trade = html.Button('GO', id='exec-btn_1')
 #     ]
 # )
 
-team_card_rec = dbc.Card(
-    [html.Div([dbc.CardImg(id='prediction-teamRep-image')],
-              style={'width': '100%', 'display': 'flex', 'align-items': 'center', 'justify-content': 'center'}),
-     dbc.CardBody(
-         [dcc.Dropdown(
+
+# team_card_rec = html.Div(
+#     dbc.Container(
+#         [
+#             html.H1("Jumbotron", className="display-3"),
+#             html.Div([dbc.CardImg(id='prediction-teamRep-image')],
+#                      style={'width': '33%', 'display': 'flex', 'align-items': 'center', 'justify-content': 'center'}),
+# ,
+#             html.Hr(className="my-2"),
+#             select_go
+#         ],
+#         fluid=True,
+#         className="py-3",
+#     ),
+#     className="p-3 bg-light rounded-3",
+# )
+
+
+left_jumbotron = dbc.Col(
+    html.Div(
+        [dbc.CardImg(id='prediction-teamRep-image', style={'width': '33%', 'margin-left': '30%', 'textAlign': 'center'}),
+            html.Hr(className="my-2"),
+
+         dcc.Dropdown(
              id='pred-teamRec-select-dropdown',
              options=[{'label': list(team_data['full_name'])[i], 'value': abb} for i, abb in
                       enumerate(team_data['abbreviation'])],
              placeholder='Select a Team',
              value='LAL'
+         ),
+        ],
+        className="h-100 p-5 bg-light border rounded-3",
+    ),
+    md=6,
+)
 
-         ), dcc.RadioItems(id='prediction-mode-dropdown', options=[{'label': 'Validation', 'value': 'validation'},
-                                                                   {'label': 'Simulation', 'value': 'simulation'}],
-                           value='validation')])
-     ],
-    style={"width": "20rem", "align": "auto"})
+# dcc.RadioItems(
+#                           options=[
+#                               {'label': '10 sims (10s)', 'value': 10},
+#                               {'label': '100 sims (30s)', 'value': 100},
+#                               {'label': '1000 sims (180s)', 'value': 1000},
+#                           ],
+#                           value=10, id='slider-sim'
+#                       ),
+
+
+instructions_sim = """
+
+Pick your team on the left side and pick trade partners for the presented players using the dropdown menu's below.
+
+A higher number of simulations leads to less variance in the predictions i.e. more narrow boxplots below, but comes at the cost of longer computing time. 10 simulations take 10 seconds, while 1000 simulations take roughly 2:30 minutes.
+
+"""
+
+right_jumbotron = dbc.Col(
+    html.Div(
+        [
+         html.Div(
+             [html.P(instructions_sim),
+                 dcc.Slider(min=10, max=1000, step=100, value=10, id='slider-sim', tooltip = {'always_visible': True}),
+                 dbc.Button("Simulate!", size="lg", className="me-1", id='exec-btn_1', color="info"),
+             ],
+             className="d-grid gap-2",
+         )
+         ],
+        className="h-100 p-5 bg-light border rounded-3",
+    ),
+    md=6,
+)
+
+jumbotron_header = dbc.Row(
+    [left_jumbotron, right_jumbotron],
+    className="align-items-md-stretch",
+)
 
 # team_card_rec = html.Div([
 #     html.Img(id='prediction-teamRep-image', style={'width': '50%', 'display': 'flex', 'align-items': 'center', 'justify-content': 'center'}),
@@ -199,7 +255,7 @@ text_offcanvas = """Select your team (left-side) and the player you want to trad
 Then select one of your starting players to trade against the selcted player."
 """
 
-offcanvas = html.Div([html.Div([dbc.Button("Information regarding the usage of the season prediction", id="rec-infocanvas-pred", n_clicks=0, style={'background-color': '#17408b', 'color': 'white', 'margin-bottom': '10px'})],
+offcanvas = html.Div([html.Div([dbc.Button("Information regarding the modeling", id="rec-infocanvas-pred", n_clicks=0, style={'background-color': '#17408b', 'color': 'white', 'margin-bottom': '10px'})],
                                 style = {'width': '100%', 'display': 'flex', 'align-items': 'center', 'justify-content': 'center'}),
                       html.Div([dbc.Offcanvas([html.P(text_offcanvas)],
                                 backdrop=True,
@@ -211,7 +267,7 @@ offcanvas = html.Div([html.Div([dbc.Button("Information regarding the usage of t
                                 style = {'width': '100%', 'display': 'flex', 'justify-content': 'top'})
                      ])
 
-validation_trade = html.Div([
+simulation_trade = html.Div([
     dbc.Container([
         dcc.Loading([dcc.Graph(id='prediction-output-graph_trade', clear_on_unhover=True),
                      dcc.Graph(id='prediction-output-graph_trade3', clear_on_unhover=True),
@@ -221,11 +277,50 @@ validation_trade = html.Div([
                                           sort_mode="multi",
                                           page_action="native",
                                           page_current=0,
-                                          page_size=25,
+                                          page_size=30,
                                           style_cell={'textAlign': 'center'},
                                           style_as_list_view=True
                                           )], fullscreen=False, type='dot',
-                    color="#119DFF")]), html.H2(id="prediction-mae")])
+                    color="#119DFF")]), html.H2(id="prediction-mae"), dash_table.DataTable(id="prediction-validation-table",
+                                            filter_action="native",
+                                            sort_action="native",
+                                            sort_mode="multi",
+                                            page_action="native",
+                                            page_current=0,
+                                            page_size=30,
+                                            style_cell={'textAlign': 'center'},
+                                            style_as_list_view=True
+                                            )])
+
+validation_trade = html.Div([
+    dbc.Container([
+        dcc.Loading([dcc.Graph(id='prediction-output-graph_trade-v', clear_on_unhover=True),
+                     dcc.Graph(id='prediction-output-graph_error-v', clear_on_unhover=True),
+                     dash_table.DataTable(id='prediction-output-table_trade-v',
+                                          filter_action="native",
+                                          sort_action="native",
+                                          sort_mode="multi",
+                                          page_action="native",
+                                          page_current=0,
+                                          page_size=30,
+                                          style_cell={'textAlign': 'center'},
+                                          style_as_list_view=True
+                                          )], fullscreen=False, type='dot',
+                    color="#119DFF")]), html.H2(id="prediction-mae-v"), dash_table.DataTable(id="prediction-validation-table-v",
+                                            filter_action="native",
+                                            sort_action="native",
+                                            sort_mode="multi",
+                                            page_action="native",
+                                            page_current=0,
+                                            page_size=30,
+                                            style_cell={'textAlign': 'center'},
+                                            style_as_list_view=True
+                                            )])
+
+output = dcc.Tabs(id='tabs-pred', value='tab-1', children=[
+        dcc.Tab(label="Simulation", value='tab-1', children=[simulation_trade]),
+        dcc.Tab(label='Validation', value='tab-2', children=[validation_trade])
+])
 
 
 # left_jumbotron_header = dbc.Col(
@@ -258,11 +353,10 @@ validation_trade = html.Div([
 # )
 
 prediction = html.Div(
-    children=[offcanvas,
-              execute_trade,
-              team_card_rec,
+    children=[
+              offcanvas,
+              jumbotron_header,
               pred_player_images,
               pred_player_text,
               buttons_trade,
-              validation_trade,
-              html.Div(dash_table.DataTable(id='prediction-validation-table'))])
+              output])

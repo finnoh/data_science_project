@@ -306,6 +306,9 @@ def trade_player_function(player_in, player_out, df, scores):
     # player_in = 2544
     # player_out = 203939
 
+    print(player_in)
+    print(player_out)
+
     # get name
     player_in_name = df[df['PLAYER_ID'] == player_in]['PLAYER_NAME'].values[0]
     player_out_name = df[df['PLAYER_ID'] == player_out]['PLAYER_NAME'].values[0]
@@ -812,25 +815,36 @@ def simulate_season(mean, mean_trade, sigma, df_int_test, n_sim: int=1000):
 
     return performance
 
-def plot_whole_league(performance):
+def plot_whole_league(performance, input_team, my_order_all=None):
     """
 
     :param performance:
     :return:
     """
-    my_order_all = performance.groupby('AWAY_TEAM_ABB')["RANK"].median().sort_values().index.values
-    my_order_conf = performance.groupby('AWAY_TEAM_ABB')["RANK"].median().sort_values().index.values
+    if my_order_all is None:
+        my_order_all = performance.groupby('AWAY_TEAM_ABB')["RANK"].median().sort_values().index.values
+    #my_order_conf = performance.groupby('AWAY_TEAM_ABB')["RANK"].median().sort_values().index.values
 
-    fig = px.box(performance, x='AWAY_TEAM_ABB', y='RANK', color="KIND", category_orders={'AWAY_TEAM_ABB': my_order_all})
+    selected_team_index = my_order_all.tolist().index(input_team)
+
+    fig = px.box(performance, x='AWAY_TEAM_ABB', y='RANK', color="KIND", category_orders={'AWAY_TEAM_ABB': my_order_all},
+                 labels={
+                     "AWAY_TEAM_ABB": "Team Abbreviation",
+                     "RANK": "Rank",
+                     "KIND": ""
+                 }
+                 )
     fig.update_yaxes(autorange="reversed")
     fig.update_layout(transition_duration=500, template="simple_white")
 
-    fig2 = px.box(performance, x='AWAY_TEAM_ABB', y='CONF_RANK', facet_col='CONFERENCE',
-                  category_orders={'AWAY_TEAM_ABB': my_order_conf})
-    fig2.update_yaxes(autorange="reversed")
-    fig2.update_layout(transition_duration=500, template="simple_white")
+    fig.add_vrect(x0=selected_team_index-0.5, x1=selected_team_index+0.5)
 
-    return fig, fig2
+    # fig2 = px.box(performance, x='AWAY_TEAM_ABB', y='CONF_RANK', facet_col='CONFERENCE',
+    #               category_orders={'AWAY_TEAM_ABB': my_order_conf})
+    # fig2.update_yaxes(autorange="reversed")
+    # fig2.update_layout(transition_duration=500, template="simple_white")
+
+    return fig
 
 
 def create_scoreboard(df_int_test, prediction, prediction_trade):
@@ -890,8 +904,29 @@ def create_scoreboard(df_int_test, prediction, prediction_trade):
     # calculate mae of wins
     mae_pred = mean_absolute_error(season_performance['WIN'].values, season_performance['WIN_pred'].values)
 
-    return season_performance, mae_pred
+    order = season_performance.sort_values('WIN_pred')['TEAM_ABBREVIATION'].values
 
-def vis_change(scoreboard):
-    fig = px.scatter(scoreboard, x="WIN_pred", y="WIN_trade", color="TRADE_CHANGE")
+    return season_performance, mae_pred, order
+
+def vis_change(scoreboard, input_team, my_order_all):
+    fig = px.bar(scoreboard, x='TEAM_ABBREVIATION', y='TRADE_CHANGE', labels={
+                     "TEAM_ABBREVIATION": "Team Abbreviation",
+                     "TRADE_CHANGE": "Change in Wins"
+                 })
+    selected_team_index = my_order_all.tolist().index(input_team)
+
+    fig.update_layout(transition_duration=500, template="simple_white", xaxis={'categoryorder': 'array', 'categoryarray': my_order_all})
+    fig.add_vrect(x0=selected_team_index - 0.5, x1=selected_team_index + 0.5)
+
+    return fig
+
+def vis_pred_error(scoreboard, input_team):
+    fig = px.bar(scoreboard, x='TEAM_ABBREVIATION', y='WIN_ERROR', labels={
+                     "TEAM_ABBREVIATION": "Team Abbreviation",
+                     "WIN_ERROR": "Prediction Error (Wins)"
+                 })
+    selected_team_index = scoreboard['TEAM_ABBREVIATION'].tolist().index(input_team)
+    fig.update_layout(transition_duration=500, template="simple_white")
+    fig.add_vrect(x0=selected_team_index - 0.5, x1=selected_team_index + 0.5)
+
     return fig

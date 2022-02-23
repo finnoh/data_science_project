@@ -45,11 +45,9 @@ player_selector = _player_selector()
 
 
 wikitext = dbc.Alert(
-    [
-        html.H4("Player-Bio", className="alert-heading"),
-        html.P(id='playerselect-output-container-wiki'
-        ),
-        html.Hr(),
+    [html.H4("Player-Bio"),
+        dbc.Container(id='playerselect-output-container-wiki', style={"maxHeight": "270px", "overflow": "scroll"}),
+        html.Hr(className="my-2"),
         html.Span(
             [
                 dbc.Badge(id='playerselect-draft', color="info", className="me-1", pill=True),
@@ -100,7 +98,7 @@ top_players = dbc.Row([dash_table.DataTable(id='playerselect-topplayer',
                                             sort_mode="multi",
                                             page_action="native",
                                             page_current=0,
-                                            page_size=25,
+                                            page_size=10,
                                             style_cell={'textAlign': 'center'},
                                             style_as_list_view=True
                                             )])
@@ -112,16 +110,27 @@ draft_pick_performance = html.Div([
     dcc.Graph(id="graph")
 ])
 
+# player_mincer_coefs = html.Div(
+#     dbc.Accordion(
+#         [
+#             dbc.AccordionItem(
+#                 [top_players, draft_pick_performance], title="Top Players and Draft Picks"
+#             ),
+#             dbc.AccordionItem(
+#                 [mincer], title="Mincer - Salary Evaluation"
+#             )
+#         ],
+#         flush=False, start_collapsed=True
+#     )
+# )
+
 player_mincer_coefs = html.Div(
-    dbc.Accordion(
+    dcc.Tabs(value='tab-1', children=
         [
-            dbc.AccordionItem(
-                [top_players, draft_pick_performance], title="Top Players and Draft Picks"
+            dcc.Tab(value='tab-1', label="Top Players and Draft Picks", children=[top_players, draft_pick_performance]
             ),
-            dbc.AccordionItem(
-                [mincer], title="Mincer - Salary Evaluation"
+            dcc.Tab(value='tab-2', label="Mincer Salary Evaluation", children=[mincer]
             )
-        ],
-        flush=False, start_collapsed=True
+        ]
     )
 )
