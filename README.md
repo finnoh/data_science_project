@@ -1,7 +1,7 @@
 # Data Science Project: NBA Dashboard
 
 This repository hosts the Data Science Project (DS500) of Finn Höner and Tim-Moritz Bündert.
-It contains all the code associated with the project along with the corresponding data.
+It contains all the commented code associated with the project along with the corresponding data.
 
 The dashboard is hosted on [this website](http://193.196.53.114/).
 
