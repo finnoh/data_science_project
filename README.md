@@ -7,7 +7,16 @@ The dashboard (using the **app.py** file) is hosted on [this website](http://193
 
 Larger data files can be accessed on [Google Drive](https://drive.google.com/drive/folders/1nl-O5oP8OEU6t839dVkCwwlSNc3XAY1e?usp=sharing).
 
+Should you be interested in more information regarding this project, feel free to contact us.
+
+finn.hoener@student.uni-tuebingen.de
+
+tim-moritz.buendert@student.uni-tuebingen.de
+
 ## Structure
+
+Generally, all files which are not factored into any subfolders are required for the successful deployment of the dashboard app. When cloning the repository, no file paths need to be changed to run the project, only the *Model* folder from the Google Drive link below needs to be added (neglected here, because of its size).
+
 Different subfolders and their purposes:
 
 ### data
@@ -36,3 +45,4 @@ The corresponding data along with the names and images displayed in the dashboar
 * [NBA2k ratings](https://2kmtcentral.com/21/players/collection/)
 * [RAPM Scores](http://nbashotcharts.com/home)
 * [NBA Logo](https://logosmarken.com/nba-logo/)
+* [FiveThirtyEight](https://projects.fivethirtyeight.com/2022-nba-predictions/raptors/)
