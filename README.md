@@ -10,8 +10,7 @@ Larger data files can be accessed on [Google Drive](https://drive.google.com/dri
 Should you be interested in more information regarding this project, feel free to contact us.
 
 finn.hoener@student.uni-tuebingen.de
-
-tim-moritz.buendert@student.uni-tuebingen.de@student.uni-tuebingen.de
+tim-moritz.buendert@student.uni-tuebingen.de
 
 ## Structure
 
