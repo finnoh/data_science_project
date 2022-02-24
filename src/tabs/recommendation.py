@@ -21,7 +21,7 @@ While the model uses the normalized values for finding the optimal recommmendati
 As a further result of the trade, the season is predicted with the effect of this trade, similar to the *Season Prediction Tab*.
 Finally, the selected attributes are used to compute different lower-dimensional embeddings which are then visualized in a 2D-/ 3D-plot.
 
-One recommendation using the *similar* option takes roughly 30 seconds while the *complementary* option requires roughly one minute.
+One recommendation using all attributes and the *similar* option takes roughly 45 seconds while the *complementary* option requires roughly 90 seconds.
 """
 
 
