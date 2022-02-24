@@ -34,6 +34,12 @@ Choose your team and replace your current players with other players from all ar
 the outcome of a whole simulated season as well as simulated table rank outcomes for the team at hand. The "validation" tab shows the prediction performance of 
 the model on the real game results of the 2021/22 season, up to mid february.
 
+The code associated this this project is hosted on [GitHub](https://github.com/finnoh/data_science_project). 
+Should you be interested in more information regarding this project, feel free to contact us.
+
+*finn.hoener@student.uni-tuebingen.de*
+
+*tim-moritz.buendert@student.uni-tuebingen.de*
 
 # References
 The corresponding data along with the names and images displayed in the dashboard are not our property. Rather, the following references apply:
