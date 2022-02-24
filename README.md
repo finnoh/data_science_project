@@ -8,6 +8,9 @@ The dashboard (using the **app.py** file) is hosted on [this website](http://193
 Larger data files can be accessed on [Google Drive](https://drive.google.com/drive/folders/1nl-O5oP8OEU6t839dVkCwwlSNc3XAY1e?usp=sharing).
 
 ## Structure
+
+Generally, all files which are not factored into any subfolders are required for the successful deployment of the dashboard app. When cloning the repository, no file paths need to be changed to run the project, only the *Model* folder from the Google Drive link below needs to be added (neglected here, because of its size).
+
 Different subfolders and their purposes:
 
 ### data
