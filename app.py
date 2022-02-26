@@ -977,7 +977,7 @@ def selected_player(team, rec_type, dist_m, cols_all, cols_off, cols_off2, cols_
     else:
         rep_player = list(players_team.keys())[2]
 
-    player_out = map_name[map_name['DISPLAY_FIRST_LAST'] == rep_player]['PLAYER_ID'].values[0]
+    player_out = list(player_data[player_data['player_names'] == rep_player]['id'])[0]
 
     df_schedule, df_boxscores, scores = load_scores_data()
 
