@@ -52,7 +52,7 @@ def select_features(features: list=['RAPM', 'POSITION_Center', 'POSITION_Center-
     # remove nas
     bool_na = (y != 0) & (np.isfinite(X).all(axis=1)) & (~np.isnan(y))
     X = X[bool_na]
-    y = y[bool_na].reshape(-1, 1)
+    y = y[bool_na].reshape(-1)
     df = df[bool_na]
 
     # remove na rows train set
@@ -66,6 +66,9 @@ def select_features(features: list=['RAPM', 'POSITION_Center', 'POSITION_Center-
     X_test = X_test[bool_na_test]
     y_test = y_test[bool_na_test].reshape(-1, 1)
     df_test = df_test[bool_na_test]
+
+    y_train = np.ravel(y_train)
+    y_test = np.ravel(y_test)
 
     return X_train, y_train, df_train, X_test, y_test, df_test, X, y, df
 
@@ -86,17 +89,17 @@ def wrapper_tune_fit(X_train, y_train, model, param_grid):
     # tune and return for rf and svr
     else:
         # Instantiate the grid search model
-        grid_search = GridSearchCV(estimator=model, param_grid=param_grid, cv=3, n_jobs=-1, verbose=2)
+        grid_search = GridSearchCV(estimator=model, param_grid=param_grid, cv=3, n_jobs=1, verbose=0)
 
         # perform gridsearch
         grid_search.fit(X_train, y_train)
         best_params = grid_search.best_params_
 
         # tuned hyperparameters
-        print(best_params)
+        #print(best_params)
         model.set_params(**best_params)
 
-        print("Fit and score model with best params... \n")
+        #print("Fit and score model with best params... \n")
         model.fit(X_train, y_train)
 
         return model
@@ -148,7 +151,6 @@ def score_model(X_test, y_test, model):
     :return:
     """
     # fit and predict
-
     return model.score(X_test, y_test)
 
 def fit_predict_full(X_train, y_train, X_test, model):
